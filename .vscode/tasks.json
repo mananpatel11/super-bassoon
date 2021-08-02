@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "C/C++: clang++ build active file",
+			"label": "build basoon",
 			"command": "/usr/bin/clang++",
 			"args": [
 				"-std=c++20",
