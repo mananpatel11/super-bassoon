@@ -11,6 +11,14 @@ struct float3 {
     float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 };
 
+float3 operator*(float lhs, float3 rhs) {
+    return float3(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z);
+}
+
+float3 operator+(float3 lhs, float3 rhs) {
+    return float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
+}
+
 struct float4 {
     float x;
     float y;
@@ -59,6 +67,7 @@ class FrameBuffer {
 };
 
 void FrameBuffer::writeColor(Coord2D coord, Color c) {
+    std::cout << "Writing color at x = " << coord.x << " y = " << coord.y << "\n";
     color_buffer[coord.y*width + coord.x] = c;
 }
 
@@ -89,8 +98,9 @@ void FrameBuffer::DumpAsPPMFile(std::string filename) {
 // vertices/faces/normals/texcoords etc.
 class Mesh {
     public:
-    Mesh(int _num_triangles, std::vector<float3> _vertices) : vertices(_vertices), num_triangles(_num_triangles) {}
+    Mesh(int _num_triangles, std::vector<float3> _vertices, std::vector<float3> _colors) : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
     std::vector<float3> vertices;
+    std::vector<float3> colors;
     int num_triangles;
     static Mesh createTriangleMesh();
 };
@@ -104,7 +114,15 @@ Mesh Mesh::createTriangleMesh() {
     vertices.push_back(v0);
     vertices.push_back(v1);
     vertices.push_back(v2);
-    return Mesh(1, vertices);
+
+    std::vector<float3> colors;
+    float3 c0(1.0, 0.0, 0.0);
+    float3 c1(0.0, 1.0, 0.0);
+    float3 c2(0.0, 0.0, 1.0);
+    colors.push_back(c0);
+    colors.push_back(c1);
+    colors.push_back(c2);
+    return Mesh(1, vertices, colors);
 }
 
 class Model {
@@ -114,78 +132,94 @@ class Model {
     void draw(FrameBuffer &fb);
 
     private:
-    float3 vertex_shader(float3 position);
-    float3 fragment_shader(float3 position);
+    //float3 vertex_shader(float3 position);
+    //float3 fragment_shader(float3 position);
 };
 
-float3 Model::vertex_shader(float3 position) {
+
+struct Varyings {
+    float3 position;
+    float3 color;
+    Varyings() = default;
+};
+
+Varyings vertex_shader(float3 position, float3 color) {
     // attributes required
         // position
+        // color
 
     // uniforms required
         // none
 
     // varyings output
         // position
-    
-    return position;
+    Varyings vout;
+    vout.position = position;
+    vout.color = color;
+    return vout;
 }
 
 // The position fragment shader receives is interpolated
-float3 Model::fragment_shader(float3 position) {
-    return float3(1.0, 0.0, 0.0);
+float3 fragment_shader(Varyings frag_in) {
+    return frag_in.color;
 }
 
-std::vector<Coord2D> rasterize(float3 v0, float3 v1, float3 v2, FrameBuffer &fb) {
-    std::vector<Coord2D> fragments;
-    for (int x = 0; x < fb.width; x++) {
-        for (int y = 0; y < fb.height; y++) {
-            Coord2D pixel(x, y);
-            float3 p;
-            // Find pixel center
-            p.x = (pixel.x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
-            p.y = (pixel.y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
-
-            std::cout << "p = (" << p.x << "," << p.y << ")\n";  
-
-            float e01 = (p.x - v0.x)*(v1.y - v0.y) - (p.y - v0.y)*(v1.x - v0.x);
-            float e12 = (p.x - v1.x)*(v2.y - v1.y) - (p.y - v1.y)*(v2.x - v1.x);
-            float e20 = (p.x - v2.x)*(v0.y - v2.y) - (p.y - v2.y)*(v0.x - v2.x);
-            std::cout << "e01 = " << e01 << "\n";
-            std::cout << "e10 = " << e12 << "\n";
-            std::cout << "e20 = " << e20 << "\n";
-            if ((e01 >= 0) && (e12 >= 0) && (e20 > 0)) {
-                fragments.push_back(pixel);
-            }
-        }
-    }
-    return fragments;
+float edge_function(float3 a, float3 b, float3 c) {
+    float w = (a.x - b.x)*(c.y - b.y) - (a.y - b.y)*(c.x - b.x);
+    return w;
 }
 
 void Model::draw(FrameBuffer &fb) {
     for (int i = 0; i < mesh.num_triangles; i++) {
-        std::vector<float3> pos_outs;
+        std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
-            float3 pos_out = vertex_shader(pos_in);
-            pos_outs.push_back(pos_out);
+            float3 color_in = mesh.colors[i*3 + vid];
+            Varyings vertex_out = vertex_shader(pos_in, color_in);
+            vertex_outs.push_back(vertex_out);
         }
 
         // TODO: Clipping
         // FIXME:Some missing steps here after vertex shader is run...
 
-        // Rasterize
-        std::vector<Coord2D> fragments = rasterize(pos_outs[0], pos_outs[1], pos_outs[2], fb);
-        
-        // TODO: Perform depth testing to discard fragments behind other geometry
-        // TODO: Varying interpolation
+        for (int x = 0; x < fb.width; x++) {
+            for (int y = 0; y < fb.height; y++) {
+                Coord2D pixel(x, y);
+                float3 p;
+                // Find pixel center
+                p.x = (pixel.x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
+                p.y = (pixel.y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
 
-        // For each fragment run fragment shader and write color to FB
-        for (int i = 0; i < fragments.size(); i++) {
-            Coord2D fragment = fragments[i];
-            float3 color = fragment_shader(float3());
-            fb.writeColor(fragment, color);
+                //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
+
+                // Check if pixel is covered by triangle
+                float area = edge_function(vertex_outs[0].position, vertex_outs[1].position, vertex_outs[2].position);
+                float e01 = edge_function(p, vertex_outs[0].position, vertex_outs[1].position);
+                float e12 = edge_function(p, vertex_outs[1].position, vertex_outs[2].position);
+                float e20 = edge_function(p, vertex_outs[2].position, vertex_outs[0].position);
+                //std::cout << "e01 = " << e01 << "\n";
+                //std::cout << "e12 = " << e12 << "\n";
+                //std::cout << "e20 = " << e20 << "\n";
+                // If pixel is covered
+                if ((e01 >= 0) && (e12 >= 0) && (e20 >= 0)) {
+                    std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
+
+                    // Compute barycentrics
+                    float w0 = e01/area;
+                    float w1 = e12/area;
+                    float w2 = e20/area;
+
+                    // Interpolate varyings
+                    Varyings varyings;
+                    varyings.position = w0*vertex_outs[0].position + w1*vertex_outs[1].position + w2*vertex_outs[2].position;
+                    varyings.color = w0*vertex_outs[0].color + w1*vertex_outs[1].color + w2*vertex_outs[2].color;
+                    
+                    // Run fragment shader
+                    float3 color = fragment_shader(varyings);
+                    fb.writeColor(pixel, color);
+                }
+            }
         }
     }
 }
