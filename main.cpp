@@ -86,7 +86,7 @@ void FrameBuffer::DumpAsPPMFile(std::string filename) {
     fs << "P3\n";
     fs << width << " " << height << "\n";
     fs << max_component_value << "\n";
-    for (int y = 0; y < height; y++) {
+    for (int y = height-1; y >= 0; y--) {
         for (int x = 0; x < width; x++) {
             Color c = color_buffer[y*width + x];
             fs << c;
@@ -105,6 +105,7 @@ class Mesh {
     static Mesh createTriangleMesh();
     static Mesh createQuadMesh();
     static Mesh createCubeMesh();
+    static Mesh createOrthographicsCubeMesh();
 };
 
 Mesh Mesh::createTriangleMesh() {
@@ -168,6 +169,82 @@ Mesh Mesh::createCubeMesh() {
     float3 v11(0.8, 0.8, -0.8);
     float3 v12(0.8, -0.8, -0.8);
     float3 v13(-0.8, -0.8, -0.8);
+    
+    // Front face
+    vertices.push_back(v00);
+    vertices.push_back(v01);
+    vertices.push_back(v02);
+    vertices.push_back(v02);
+    vertices.push_back(v03);
+    vertices.push_back(v00);
+
+    // Back face
+    vertices.push_back(v11);
+    vertices.push_back(v10);
+    vertices.push_back(v13);
+    vertices.push_back(v13);
+    vertices.push_back(v12);
+    vertices.push_back(v11);
+    
+    // Top face
+    vertices.push_back(v00);
+    vertices.push_back(v10);
+    vertices.push_back(v11);
+    vertices.push_back(v11);
+    vertices.push_back(v01);
+    vertices.push_back(v00);
+
+    // Bottom face
+    vertices.push_back(v13);
+    vertices.push_back(v03);
+    vertices.push_back(v02);
+    vertices.push_back(v02);
+    vertices.push_back(v12);
+    vertices.push_back(v13);
+    
+    // Left face
+    vertices.push_back(v10);
+    vertices.push_back(v00);
+    vertices.push_back(v03);
+    vertices.push_back(v03);
+    vertices.push_back(v13);
+    vertices.push_back(v10);
+
+    // Right face
+    vertices.push_back(v01);
+    vertices.push_back(v11);
+    vertices.push_back(v12);
+    vertices.push_back(v12);
+    vertices.push_back(v02);
+    vertices.push_back(v01);
+
+    std::vector<float3> colors;
+    float3 c0(1.0, 0.0, 0.0);
+    float3 c1(0.0, 1.0, 0.0);
+    float3 c2(0.0, 0.0, 1.0);
+    int num_faces = 6;
+    int num_triangles = num_faces * 2;
+    for (int i = 0; i < num_triangles; i++) {
+        colors.push_back(c0);
+        colors.push_back(c1);
+        colors.push_back(c2);
+    } 
+    return Mesh(num_triangles, vertices, colors);
+}
+
+Mesh Mesh::createOrthographicsCubeMesh() {
+    std::vector<float3> vertices;
+    // f = front, b = back
+    // u = up, d = down
+    // l = left, r = right
+    float3 v00(-0.5, 0.0, 0.8);
+    float3 v01(0.0, 0.0, 0.8);
+    float3 v02(0.0, -0.5, 0.8);
+    float3 v03(-0.5, -0.5, 0.8);
+    float3 v10(0.0, 0.5, -0.8);
+    float3 v11(0.5, 0.5, -0.8);
+    float3 v12(0.5, 0.0, -0.8);
+    float3 v13(0.0, 0.0, -0.8);
     
     // Front face
     vertices.push_back(v00);
@@ -337,6 +414,7 @@ class Scene {
     static Scene CreateTriangleScene();
     static Scene CreateQuadScene();
     static Scene CreateCubeScene();
+    static Scene CreateOrthographicCubeScene();
 };
 
 Scene Scene::CreateTriangleScene() {
@@ -357,6 +435,14 @@ Scene Scene::CreateQuadScene() {
 
 Scene Scene::CreateCubeScene() {
     Mesh mesh = Mesh::createCubeMesh();
+    Model model = Model(mesh);
+    std::vector<Model> models;
+    models.push_back(model);
+    return Scene(models);
+}
+
+Scene Scene::CreateOrthographicCubeScene() {
+    Mesh mesh = Mesh::createOrthographicsCubeMesh();
     Model model = Model(mesh);
     std::vector<Model> models;
     models.push_back(model);
@@ -432,8 +518,27 @@ int test_cube() {
     return 0;
 }
 
+int test_orthographics_cube() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateOrthographicCubeScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("orthographics_cube.ppm");
+    return 0;
+}
+
 int main() {
     test_triangle();
     test_quad();
     test_cube();
+    test_orthographics_cube();
 }
