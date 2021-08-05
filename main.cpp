@@ -103,6 +103,8 @@ class Mesh {
     std::vector<float3> colors;
     int num_triangles;
     static Mesh createTriangleMesh();
+    static Mesh createQuadMesh();
+    static Mesh createCubeMesh();
 };
 
 Mesh Mesh::createTriangleMesh() {
@@ -125,15 +127,115 @@ Mesh Mesh::createTriangleMesh() {
     return Mesh(1, vertices, colors);
 }
 
+Mesh Mesh::createQuadMesh() {
+    int num_triangles = 2;
+    std::vector<float3> vertices;
+    float3 v0(-0.8, -0.8, 0.0);
+    float3 v1(-0.8, 0.8, 0.0);
+    float3 v2(0.8, -0.8, 0.0);
+    float3 v3(0.8, 0.8, 0.0);
+    vertices.push_back(v0);
+    vertices.push_back(v1);
+    vertices.push_back(v2);
+    vertices.push_back(v2);
+    vertices.push_back(v1);
+    vertices.push_back(v3);
+
+    std::vector<float3> colors;
+    float3 c0(1.0, 0.0, 0.0);
+    float3 c1(0.0, 1.0, 0.0);
+    float3 c2(0.0, 0.0, 1.0);
+    float3 c3(0.0, 1.0, 1.0);
+    colors.push_back(c0);
+    colors.push_back(c1);
+    colors.push_back(c2);
+    colors.push_back(c2);
+    colors.push_back(c1);
+    colors.push_back(c3);
+    return Mesh(num_triangles, vertices, colors);
+}
+
+Mesh Mesh::createCubeMesh() {
+    std::vector<float3> vertices;
+    // f = front, b = back
+    // u = up, d = down
+    // l = left, r = right
+    float3 v00(-0.8, 0.8, 0.8);
+    float3 v01(0.8, 0.8, 0.8);
+    float3 v02(0.8, -0.8, 0.8);
+    float3 v03(-0.8, -0.8, 0.8);
+    float3 v10(-0.8, 0.8, -0.8);
+    float3 v11(0.8, 0.8, -0.8);
+    float3 v12(0.8, -0.8, -0.8);
+    float3 v13(-0.8, -0.8, -0.8);
+    
+    // Front face
+    vertices.push_back(v00);
+    vertices.push_back(v01);
+    vertices.push_back(v02);
+    vertices.push_back(v02);
+    vertices.push_back(v03);
+    vertices.push_back(v00);
+
+    // Back face
+    vertices.push_back(v11);
+    vertices.push_back(v10);
+    vertices.push_back(v13);
+    vertices.push_back(v13);
+    vertices.push_back(v12);
+    vertices.push_back(v11);
+    
+    // Top face
+    vertices.push_back(v00);
+    vertices.push_back(v10);
+    vertices.push_back(v11);
+    vertices.push_back(v11);
+    vertices.push_back(v01);
+    vertices.push_back(v00);
+
+    // Bottom face
+    vertices.push_back(v13);
+    vertices.push_back(v03);
+    vertices.push_back(v02);
+    vertices.push_back(v02);
+    vertices.push_back(v12);
+    vertices.push_back(v13);
+    
+    // Left face
+    vertices.push_back(v10);
+    vertices.push_back(v00);
+    vertices.push_back(v03);
+    vertices.push_back(v03);
+    vertices.push_back(v13);
+    vertices.push_back(v10);
+
+    // Right face
+    vertices.push_back(v01);
+    vertices.push_back(v11);
+    vertices.push_back(v12);
+    vertices.push_back(v12);
+    vertices.push_back(v02);
+    vertices.push_back(v01);
+
+    std::vector<float3> colors;
+    float3 c0(1.0, 0.0, 0.0);
+    float3 c1(0.0, 1.0, 0.0);
+    float3 c2(0.0, 0.0, 1.0);
+    int num_faces = 6;
+    int num_triangles = num_faces * 2;
+    for (int i = 0; i < num_triangles; i++) {
+        colors.push_back(c0);
+        colors.push_back(c1);
+        colors.push_back(c2);
+    } 
+    return Mesh(num_triangles, vertices, colors);
+}
+
 class Model {
     public:
     Model(Mesh _m) : mesh(_m) {}
     Mesh mesh;
     void draw(FrameBuffer &fb);
-
-    private:
-    //float3 vertex_shader(float3 position);
-    //float3 fragment_shader(float3 position);
 };
 
 
@@ -143,16 +245,15 @@ struct Varyings {
     Varyings() = default;
 };
 
+// attributes required
+    // position
+    // color
+// uniforms required
+    // none
+// varyings output
+    // position
+    // color
 Varyings vertex_shader(float3 position, float3 color) {
-    // attributes required
-        // position
-        // color
-
-    // uniforms required
-        // none
-
-    // varyings output
-        // position
     Varyings vout;
     vout.position = position;
     vout.color = color;
@@ -183,6 +284,8 @@ void Model::draw(FrameBuffer &fb) {
         // TODO: Clipping
         // FIXME:Some missing steps here after vertex shader is run...
 
+        // Rasterize and shade
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/rasterization-stage
         for (int x = 0; x < fb.width; x++) {
             for (int y = 0; y < fb.height; y++) {
                 Coord2D pixel(x, y);
@@ -206,11 +309,11 @@ void Model::draw(FrameBuffer &fb) {
                     std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
 
                     // Compute barycentrics
-                    float w0 = e01/area;
-                    float w1 = e12/area;
-                    float w2 = e20/area;
+                    float w2 = e01/area;
+                    float w0 = e12/area;
+                    float w1 = e20/area;
 
-                    // Interpolate varyings
+                    // Interpolate varyings using barycentrics computed above
                     Varyings varyings;
                     varyings.position = w0*vertex_outs[0].position + w1*vertex_outs[1].position + w2*vertex_outs[2].position;
                     varyings.color = w0*vertex_outs[0].color + w1*vertex_outs[1].color + w2*vertex_outs[2].color;
@@ -232,10 +335,28 @@ class Scene {
     // Constructors
     //static Scene CreateSceneFromGLTF(std::string filename);
     static Scene CreateTriangleScene();
+    static Scene CreateQuadScene();
+    static Scene CreateCubeScene();
 };
 
 Scene Scene::CreateTriangleScene() {
     Mesh mesh = Mesh::createTriangleMesh();
+    Model model = Model(mesh);
+    std::vector<Model> models;
+    models.push_back(model);
+    return Scene(models);
+}
+
+Scene Scene::CreateQuadScene() {
+    Mesh mesh = Mesh::createQuadMesh();
+    Model model = Model(mesh);
+    std::vector<Model> models;
+    models.push_back(model);
+    return Scene(models);
+}
+
+Scene Scene::CreateCubeScene() {
+    Mesh mesh = Mesh::createCubeMesh();
     Model model = Model(mesh);
     std::vector<Model> models;
     models.push_back(model);
@@ -257,9 +378,9 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     std::cout << "Rendering ended\n";
 }
 
-int main() {
-    int width = 256;
-    int height = 256;
+int test_triangle() {
+    int width = 16;
+    int height = 16;
 
     // Create Scene
     Scene scn = Scene::CreateTriangleScene();
@@ -271,6 +392,48 @@ int main() {
     Renderer::Render(fb, scn);
 
     // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("image.ppm");
+    fb.DumpAsPPMFile("triangle.ppm");
     return 0;
+}
+
+int test_quad() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateQuadScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("quad.ppm");
+    return 0;
+}
+
+int test_cube() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateCubeScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("cube.ppm");
+    return 0;
+}
+
+int main() {
+    test_triangle();
+    test_quad();
+    test_cube();
 }
