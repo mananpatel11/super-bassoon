@@ -19,13 +19,50 @@ float3 operator+(float3 lhs, float3 rhs) {
     return float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 }
 
+float dot(float3 lhs, float3 rhs) {
+    return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z);
+}
+
 struct float4 {
     float x;
     float y;
     float z;
     float w;
+    float4() = default;
     float4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
 };
+
+float4 operator*(float lhs, float4 rhs) {
+    return float4(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z, lhs*rhs.w);
+}
+
+float4 operator+(float4 lhs, float4 rhs) {
+    return float4(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
+}
+
+float dot(float4 lhs, float4 rhs) {
+    return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
+}
+
+struct float4x4 {
+    float4 row0;
+    float4 row1;
+    float4 row2;
+    float4 row3;
+    float4x4(float4 _r0, float4 _r1, float4 _r2, float4 _r3) : row0(_r0), row1(_r1), row2(_r2), row3(_r3) {}  
+};
+
+float4 operator*(float4x4 lhs, float4 rhs) {
+        return float4(dot(lhs.row0, rhs), dot(lhs.row1, rhs), dot(lhs.row2, rhs), dot(lhs.row3, rhs));
+}
+
+float4x4 identity() {
+    float4 r0 = float4(1.0, 0.0, 0.0, 0.0);
+    float4 r1 = float4(0.0, 1.0, 0.0, 0.0);
+    float4 r2 = float4(0.0, 0.0, 1.0, 0.0);
+    float4 r3 = float4(0.0, 0.0, 0.0, 1.0);
+    return float4x4(r0, r1, r2, r3);
+}
 
 struct Color {
     uint8_t r;
@@ -234,9 +271,6 @@ Mesh Mesh::createCubeMesh() {
 
 Mesh Mesh::createOrthographicsCubeMesh() {
     std::vector<float3> vertices;
-    // f = front, b = back
-    // u = up, d = down
-    // l = left, r = right
     float3 v00(-0.5, 0.0, 0.8);
     float3 v01(0.0, 0.0, 0.8);
     float3 v02(0.0, -0.5, 0.8);
@@ -310,14 +344,14 @@ Mesh Mesh::createOrthographicsCubeMesh() {
 
 class Model {
     public:
-    Model(Mesh _m) : mesh(_m) {}
+    Model(Mesh _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
     Mesh mesh;
+    float4x4 transform;
     void draw(FrameBuffer &fb);
 };
 
-
 struct Varyings {
-    float3 position;
+    float4 position;
     float3 color;
     Varyings() = default;
 };
@@ -330,10 +364,14 @@ struct Varyings {
 // varyings output
     // position
     // color
-Varyings vertex_shader(float3 position, float3 color) {
+Varyings vertex_shader(float3 position, float3 color,float4x4 transform) {
     Varyings vout;
-    vout.position = position;
-    vout.color = color;
+    vout.position.x = position.x;
+    vout.position.y = position.y;
+    vout.position.z = position.z;
+    vout.position.w = 1;
+    vout.position = transform*vout.position;
+    vout.color = color; 
     return vout;
 }
 
@@ -342,7 +380,7 @@ float3 fragment_shader(Varyings frag_in) {
     return frag_in.color;
 }
 
-float edge_function(float3 a, float3 b, float3 c) {
+float edge_function(float4 a, float4 b, float4 c) {
     float w = (a.x - b.x)*(c.y - b.y) - (a.y - b.y)*(c.x - b.x);
     return w;
 }
@@ -354,7 +392,7 @@ void Model::draw(FrameBuffer &fb) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            Varyings vertex_out = vertex_shader(pos_in, color_in);
+            Varyings vertex_out = vertex_shader(pos_in, color_in, transform);
             vertex_outs.push_back(vertex_out);
         }
 
@@ -366,7 +404,7 @@ void Model::draw(FrameBuffer &fb) {
         for (int x = 0; x < fb.width; x++) {
             for (int y = 0; y < fb.height; y++) {
                 Coord2D pixel(x, y);
-                float3 p;
+                float4 p;
                 // Find pixel center
                 p.x = (pixel.x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
                 p.y = (pixel.y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
@@ -419,7 +457,7 @@ class Scene {
 
 Scene Scene::CreateTriangleScene() {
     Mesh mesh = Mesh::createTriangleMesh();
-    Model model = Model(mesh);
+    Model model = Model(mesh, identity());
     std::vector<Model> models;
     models.push_back(model);
     return Scene(models);
@@ -427,7 +465,7 @@ Scene Scene::CreateTriangleScene() {
 
 Scene Scene::CreateQuadScene() {
     Mesh mesh = Mesh::createQuadMesh();
-    Model model = Model(mesh);
+    Model model = Model(mesh, identity());
     std::vector<Model> models;
     models.push_back(model);
     return Scene(models);
@@ -435,7 +473,7 @@ Scene Scene::CreateQuadScene() {
 
 Scene Scene::CreateCubeScene() {
     Mesh mesh = Mesh::createCubeMesh();
-    Model model = Model(mesh);
+    Model model = Model(mesh, identity());
     std::vector<Model> models;
     models.push_back(model);
     return Scene(models);
@@ -443,7 +481,7 @@ Scene Scene::CreateCubeScene() {
 
 Scene Scene::CreateOrthographicCubeScene() {
     Mesh mesh = Mesh::createOrthographicsCubeMesh();
-    Model model = Model(mesh);
+    Model model = Model(mesh, identity());
     std::vector<Model> models;
     models.push_back(model);
     return Scene(models);
@@ -453,7 +491,6 @@ class Renderer {
     public:
     static void Render(FrameBuffer &fb, Scene &scn);
 };
-
 
 void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     std::cout << "Rendering started\n";
