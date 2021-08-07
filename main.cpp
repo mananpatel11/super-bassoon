@@ -155,6 +155,33 @@ float4x4 identity() {
     return M;
 }
 
+float4x4 translationMatrix(float x, float y, float z) {
+    float4x4 T = identity();
+    T.row0.w = x;
+    T.row1.w = y;
+    T.row2.w = z;
+    return T;
+}
+
+//https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
+float4x4 projectionMatrix(const float near_plane, const float far_plane,
+                          const float fov_horiz, const float fov_vert) {
+    float    h, w, Q;
+
+    w = (float)1/tan(fov_horiz*0.5);  // 1/tan(x) == cot(x)
+    h = (float)1/tan(fov_vert*0.5);   // 1/tan(x) == cot(x)
+    Q = far_plane/(far_plane - near_plane);
+
+    float4x4 ret = float4x4();
+
+    ret.row0.x = w;
+    ret.row1.y = h;
+    ret.row2.z = Q;
+    ret.row3.z = -Q*near_plane;
+    ret.row2.w = 1;
+    return ret;
+}
+
 struct Color {
     uint8_t r;
     uint8_t g;
@@ -447,14 +474,13 @@ struct Varyings {
     Varyings() = default;
 };
 
-Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, float4x4 view_transform) {
+Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, float4x4 view_transform, float4x4 projection_matrix) {
     Varyings vout;
-    std::cout << view_transform;
     vout.position.x = position.x;
     vout.position.y = position.y;
     vout.position.z = position.z;
     vout.position.w = 1;
-    vout.position = view_transform*model_transform*vout.position;
+    vout.position = projection_matrix*view_transform*model_transform*vout.position;
     vout.position = vout.position;
     vout.color = color; 
     return vout;
@@ -477,7 +503,9 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform);
+            float4x4 projection_matrix = projectionMatrix(0.01, 1.0, 2.6, 2.6);
+            //float4x4 projection_matrix = identity();
+            Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
         }
 
@@ -527,16 +555,6 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     }
 }
 
-float4x4 orthographicsProjMatrix() {
-    float4x4 proj_matrix;
-    return proj_matrix;
-}
-
-float4x4 perspectiveProjMatrix() {
-    float4x4 proj_matrix;
-    return proj_matrix;
-}
-
 // https://stackoverflow.com/questions/349050/calculating-a-lookat-matrix
 float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
     float3 zaxis = normal(at - eye);
@@ -549,7 +567,6 @@ float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
     float4x4 view_matrix(row0, row1, row2, row3);
     return view_matrix;
 }
-
 
 class Scene {
     public:
@@ -583,14 +600,18 @@ Scene Scene::CreateQuadScene() {
 }
 
 Scene Scene::CreateCubeScene() {
-    Mesh mesh = Mesh::createCubeMesh();
-    float4x4 model_matrix(float4(0.5, 0.5, 0.5, 1.0));
-    //model_matrix = identity();
-    Model model = Model(mesh, model_matrix);
     std::vector<Model> models;
-    models.push_back(model);
+    Mesh mesh = Mesh::createCubeMesh();
+    //float4x4 model_matrix(float4(0.5, 0.5, 0.5, 1.0));
+    //float4x4 model_matrix(float4(1.0, 1.0, 1.0, 1.0));
+    float4x4 model1_matrix = translationMatrix(-1.0, 1.0, -1.0);
+    float4x4 model2_matrix = translationMatrix(1.0, 1.0, 4.0);
+    Model mode1 = Model(mesh, model1_matrix);
+    Model mode2 = Model(mesh, model2_matrix);
+    models.push_back(mode1);
+    models.push_back(mode2);
     Scene s(models);
-    float3 eye(1, 1, -1);
+    float3 eye(10, 10, -10);
     float3 at(0, 0, 0);
     float3 up(-1, 1, 1);
     s.view_matrix = lookAtMatrix(eye, at, up);
