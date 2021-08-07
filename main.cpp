@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 struct float3 {
     float x;
@@ -15,12 +16,32 @@ float3 operator*(float lhs, float3 rhs) {
     return float3(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z);
 }
 
+float3 operator/(float3 num, float den) {
+    return float3(num.x/den, num.y/den, num.z/den);
+}
+
 float3 operator+(float3 lhs, float3 rhs) {
     return float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 }
 
+float3 operator-(float3 lhs, float3 rhs) {
+    return float3(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z);
+}
+
 float dot(float3 lhs, float3 rhs) {
     return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z);
+}
+
+float3 cross(float3 a, float3 b) {
+    return float3((a.y*b.z - a.z*b.y), -(a.x*b.z - a.z*b.x), (a.x*b.y - a.y*b.x));
+}
+
+float magnitude(float3 vec) {
+    return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z);
+}
+
+float3 normal(float3 vec) {
+    return (vec/magnitude(vec));
 }
 
 struct float4 {
@@ -32,16 +53,37 @@ struct float4 {
     float4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
 };
 
+std::ostream& operator<<(std::ostream& os, float4& vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
+    return os;
+}
+
 float4 operator*(float lhs, float4 rhs) {
     return float4(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z, lhs*rhs.w);
+}
+
+float4 operator/(float4 num, float den) {
+    return float4(num.x/den, num.y/den, num.z/den, num.w/den);
 }
 
 float4 operator+(float4 lhs, float4 rhs) {
     return float4(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
 }
 
+float4 operator-(float4 lhs, float4 rhs) {
+    return float4(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
+}
+
 float dot(float4 lhs, float4 rhs) {
     return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
+}
+
+float magnitude(float4 vec) {
+    return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w);
+}
+
+float4 normal(float4 vec) {
+    return (vec/magnitude(vec));
 }
 
 struct float4x4 {
@@ -49,19 +91,68 @@ struct float4x4 {
     float4 row1;
     float4 row2;
     float4 row3;
+    float4x4() = default;
+    float4x4(float4 diagonal) : row0(float4()), row1(float4()), row2(float4()), row3(float4()) {
+        row0.x = diagonal.x;
+        row1.y = diagonal.y;
+        row2.z = diagonal.z;
+        row3.w = diagonal.w;
+    }
     float4x4(float4 _r0, float4 _r1, float4 _r2, float4 _r3) : row0(_r0), row1(_r1), row2(_r2), row3(_r3) {}  
 };
+
+std::ostream& operator<<(std::ostream& os, float4x4 M) {
+    os << "\n";
+    os << M.row0 << "\n";
+    os << M.row1 << "\n";
+    os << M.row2 << "\n";
+    os << M.row3 << "\n";
+    os << "\n";
+    return os;
+}
 
 float4 operator*(float4x4 lhs, float4 rhs) {
         return float4(dot(lhs.row0, rhs), dot(lhs.row1, rhs), dot(lhs.row2, rhs), dot(lhs.row3, rhs));
 }
 
+float4x4 operator/(float4x4 M, float scalar) {
+    float4x4 A = M;
+    A.row0 = M.row0/scalar;
+    A.row1 = M.row1/scalar;
+    A.row2 = M.row2/scalar;
+    A.row3 = M.row3/scalar;
+    return M;
+}
+
+float4x4 operator*(float4x4 a, float4x4 b) {
+    float4x4 result;
+
+    result.row0.x = dot(a.row0, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
+    result.row0.y = dot(a.row0, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
+    result.row0.z = dot(a.row0, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
+    result.row0.w = dot(a.row0, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+
+    result.row1.x = dot(a.row1, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
+    result.row1.y = dot(a.row1, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
+    result.row1.z = dot(a.row1, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
+    result.row1.w = dot(a.row1, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+
+    result.row2.y = dot(a.row2, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
+    result.row2.z = dot(a.row2, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
+    result.row2.x = dot(a.row2, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
+    result.row2.w = dot(a.row2, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+
+    result.row3.x = dot(a.row3, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
+    result.row3.y = dot(a.row3, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
+    result.row3.z = dot(a.row3, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
+    result.row3.w = dot(a.row3, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+
+    return result;
+}
+
 float4x4 identity() {
-    float4 r0 = float4(1.0, 0.0, 0.0, 0.0);
-    float4 r1 = float4(0.0, 1.0, 0.0, 0.0);
-    float4 r2 = float4(0.0, 0.0, 1.0, 0.0);
-    float4 r3 = float4(0.0, 0.0, 0.0, 1.0);
-    return float4x4(r0, r1, r2, r3);
+    float4x4 M(float4(1.0, 1.0, 1.0, 1.0));
+    return M;
 }
 
 struct Color {
@@ -347,7 +438,7 @@ class Model {
     Model(Mesh _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
     Mesh mesh;
     float4x4 transform;
-    void draw(FrameBuffer &fb);
+    void draw(FrameBuffer &fb, float4x4 &view_transform);
 };
 
 struct Varyings {
@@ -356,21 +447,15 @@ struct Varyings {
     Varyings() = default;
 };
 
-// attributes required
-    // position
-    // color
-// uniforms required
-    // none
-// varyings output
-    // position
-    // color
-Varyings vertex_shader(float3 position, float3 color,float4x4 transform) {
+Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, float4x4 view_transform) {
     Varyings vout;
+    std::cout << view_transform;
     vout.position.x = position.x;
     vout.position.y = position.y;
     vout.position.z = position.z;
     vout.position.w = 1;
-    vout.position = transform*vout.position;
+    vout.position = view_transform*model_transform*vout.position;
+    vout.position = vout.position;
     vout.color = color; 
     return vout;
 }
@@ -385,14 +470,14 @@ float edge_function(float4 a, float4 b, float4 c) {
     return w;
 }
 
-void Model::draw(FrameBuffer &fb) {
+void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     for (int i = 0; i < mesh.num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            Varyings vertex_out = vertex_shader(pos_in, color_in, transform);
+            Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform);
             vertex_outs.push_back(vertex_out);
         }
 
@@ -442,10 +527,36 @@ void Model::draw(FrameBuffer &fb) {
     }
 }
 
+float4x4 orthographicsProjMatrix() {
+    float4x4 proj_matrix;
+    return proj_matrix;
+}
+
+float4x4 perspectiveProjMatrix() {
+    float4x4 proj_matrix;
+    return proj_matrix;
+}
+
+// https://stackoverflow.com/questions/349050/calculating-a-lookat-matrix
+float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
+    float3 zaxis = normal(at - eye);
+    float3 xaxis = normal(cross(up, zaxis));
+    float3 yaxis = cross(zaxis, xaxis);
+    float4 row0(xaxis.x, yaxis.x, zaxis.x, 0);
+    float4 row1(xaxis.y, yaxis.y, zaxis.y, 0);
+    float4 row2(xaxis.z, yaxis.z, zaxis.z, 0);
+    float4 row3(-dot(xaxis, eye), -dot(yaxis, eye), -dot(zaxis, eye), 1);
+    float4x4 view_matrix(row0, row1, row2, row3);
+    return view_matrix;
+}
+
+
 class Scene {
     public:
-    Scene(std::vector<Model> _models) : models(_models){};
+    Scene(std::vector<Model> _models) : models(_models), projection_matrix(identity()), view_matrix(identity()){};
     std::vector<Model> models;
+    float4x4 projection_matrix;
+    float4x4 view_matrix;
 
     // Constructors
     //static Scene CreateSceneFromGLTF(std::string filename);
@@ -473,10 +584,18 @@ Scene Scene::CreateQuadScene() {
 
 Scene Scene::CreateCubeScene() {
     Mesh mesh = Mesh::createCubeMesh();
-    Model model = Model(mesh, identity());
+    float4x4 model_matrix(float4(0.5, 0.5, 0.5, 1.0));
+    //model_matrix = identity();
+    Model model = Model(mesh, model_matrix);
     std::vector<Model> models;
     models.push_back(model);
-    return Scene(models);
+    Scene s(models);
+    float3 eye(1, 1, -1);
+    float3 at(0, 0, 0);
+    float3 up(-1, 1, 1);
+    s.view_matrix = lookAtMatrix(eye, at, up);
+    //s.view_matrix = identity();
+    return s;
 }
 
 Scene Scene::CreateOrthographicCubeScene() {
@@ -496,7 +615,8 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     std::cout << "Rendering started\n";
     for (int i = 0; i < scn.models.size(); i++) {
         Model &m = scn.models[i];
-        m.draw(fb);
+        std::cout << scn.view_matrix;
+        m.draw(fb, scn.view_matrix);
     }
     std::cout << "Rendering ended\n";
 }
@@ -571,6 +691,13 @@ int test_orthographics_cube() {
     // Dump FrameBuffer into an image file
     fb.DumpAsPPMFile("orthographics_cube.ppm");
     return 0;
+}
+
+void test_matrix4x4() {
+    float4x4 A = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
+    float4x4 B = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
+    float4x4 C = A*B;
+    std::cout << C;
 }
 
 int main() {
