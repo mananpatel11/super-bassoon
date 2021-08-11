@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <math.h>
 
 struct float3 {
     float x;
@@ -163,8 +164,39 @@ float4x4 translationMatrix(float x, float y, float z) {
     return T;
 }
 
+float4x4 scalingMatrix(float x, float y, float z) {
+    return float4x4(float4(x, y, z, 1.0));
+}
+
+float4x4 rotationMatrix() {
+    return identity();
+}
+
+// //https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
+// float4x4 projectionMatrix2(const float near_plane, const float far_plane,
+//                           const float fov_horiz, const float fov_vert) {
+//     float    h, w, Q;
+
+//     w = (float)1/tan(fov_horiz*0.5);  // 1/tan(x) == cot(x)
+//     h = (float)1/tan(fov_vert*0.5);   // 1/tan(x) == cot(x)
+//     Q = far_plane/(far_plane - near_plane);
+
+//     float4x4 ret = float4x4();
+//     //std::cout << "w = " << w << "\n";
+//     //std::cout << "fov_horiz = " << tan(45) << "\n";
+//     ret.row0.x = w;
+//     ret.row1.y = h;
+//     ret.row2.z = Q;
+//     ret.row3.z = -Q*near_plane;
+//     ret.row2.w = 1;
+//     //std::cout << ret;
+//     //exit(0);
+//     return ret;
+// }
+
 //https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
-float4x4 projectionMatrix(const float near_plane, const float far_plane,
+// Page 92 - Real-time rendering
+float4x4 perspectiveProjectionMatrix(const float near_plane, const float far_plane,
                           const float fov_horiz, const float fov_vert) {
     float    h, w, Q;
 
@@ -173,12 +205,23 @@ float4x4 projectionMatrix(const float near_plane, const float far_plane,
     Q = far_plane/(far_plane - near_plane);
 
     float4x4 ret = float4x4();
-
     ret.row0.x = w;
     ret.row1.y = h;
     ret.row2.z = Q;
-    ret.row3.z = -Q*near_plane;
-    ret.row2.w = 1;
+    ret.row2.w = -Q*near_plane;
+    ret.row3.z = 1;
+    return ret;
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixortholh
+// Page 92 - Real-time rendering
+float4x4 orthographicProjectionMatrix(float w, float h, float zn, float zf) {
+    float4x4 ret = float4x4();
+    ret.row0.x = 2.0/w;
+    ret.row1.y = 2.0/h;
+    ret.row2.z = 1.0/(zf-zn);
+    ret.row2.w = -zn/(zf-zn);
+    ret.row3.w = 1.0;
     return ret;
 }
 
@@ -222,7 +265,7 @@ class FrameBuffer {
 };
 
 void FrameBuffer::writeColor(Coord2D coord, Color c) {
-    std::cout << "Writing color at x = " << coord.x << " y = " << coord.y << "\n";
+    //std::cout << "Writing color at x = " << coord.x << " y = " << coord.y << "\n";
     color_buffer[coord.y*width + coord.x] = c;
 }
 
@@ -480,8 +523,13 @@ Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, 
     vout.position.y = position.y;
     vout.position.z = position.z;
     vout.position.w = 1;
+    // std::cout << "Input position" << vout.position << "\n";
+    // std::cout << projection_matrix << "\n";
+    // std::cout << view_transform << "\n";
+    // std::cout << model_transform << "\n";
     vout.position = projection_matrix*view_transform*model_transform*vout.position;
-    vout.position = vout.position;
+    vout.position = vout.position/vout.position.w;
+    // std::cout << "Output position" << vout.position << "\n";
     vout.color = color; 
     return vout;
 }
@@ -503,11 +551,13 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            float4x4 projection_matrix = projectionMatrix(0.01, 1.0, 2.6, 2.6);
-            //float4x4 projection_matrix = identity();
+            float4x4 perspective_matrix = perspectiveProjectionMatrix(0.01, 1.0, M_PI_2*3/2, M_PI_2*3/2);
+            float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0.1, 5.0);
+            float4x4 projection_matrix = perspective_matrix;
             Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
         }
+        //exit(0);
 
         // TODO: Clipping
         // FIXME:Some missing steps here after vertex shader is run...
@@ -534,7 +584,7 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
                 //std::cout << "e20 = " << e20 << "\n";
                 // If pixel is covered
                 if ((e01 >= 0) && (e12 >= 0) && (e20 >= 0)) {
-                    std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
+                    //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
 
                     // Compute barycentrics
                     float w2 = e01/area;
@@ -560,10 +610,16 @@ float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
     float3 zaxis = normal(at - eye);
     float3 xaxis = normal(cross(up, zaxis));
     float3 yaxis = cross(zaxis, xaxis);
-    float4 row0(xaxis.x, yaxis.x, zaxis.x, 0);
-    float4 row1(xaxis.y, yaxis.y, zaxis.y, 0);
-    float4 row2(xaxis.z, yaxis.z, zaxis.z, 0);
-    float4 row3(-dot(xaxis, eye), -dot(yaxis, eye), -dot(zaxis, eye), 1);
+    
+    // float4 row0(xaxis.x, yaxis.x, zaxis.x, 0);
+    // float4 row1(xaxis.y, yaxis.y, zaxis.y, 0);
+    // float4 row2(xaxis.z, yaxis.z, zaxis.z, 0);
+    // float4 row3(-dot(xaxis, eye), -dot(yaxis, eye), -dot(zaxis, eye), 1);
+
+    float4 row0(xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, eye));
+    float4 row1(yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, eye));
+    float4 row2(zaxis.x, zaxis.y, zaxis.z, -dot(zaxis, eye));
+    float4 row3(0, 0, 0, 1);
     float4x4 view_matrix(row0, row1, row2, row3);
     return view_matrix;
 }
@@ -585,10 +641,18 @@ class Scene {
 
 Scene Scene::CreateTriangleScene() {
     Mesh mesh = Mesh::createTriangleMesh();
-    Model model = Model(mesh, identity());
+    float4x4 model_matrix = scalingMatrix(1.0, 1.0, 1.0);
+    Model model = Model(mesh, model_matrix);
     std::vector<Model> models;
     models.push_back(model);
-    return Scene(models);
+    Scene s(models);
+    float3 eye(0, 1, -1);
+    float3 at(0, 0, 0);
+    float3 up(0, 1, 0);
+    s.view_matrix = lookAtMatrix(eye, at, up);
+    //std::cout << s.view_matrix;
+    //exit(0);
+    return s;
 }
 
 Scene Scene::CreateQuadScene() {
@@ -596,7 +660,12 @@ Scene Scene::CreateQuadScene() {
     Model model = Model(mesh, identity());
     std::vector<Model> models;
     models.push_back(model);
-    return Scene(models);
+    Scene s(models);
+    float3 eye(0, 0, -1);
+    float3 at(0, 0, 0);
+    float3 up(0, 1, 0);
+    s.view_matrix = lookAtMatrix(eye, at, up);
+    return s;
 }
 
 Scene Scene::CreateCubeScene() {
@@ -604,18 +673,18 @@ Scene Scene::CreateCubeScene() {
     Mesh mesh = Mesh::createCubeMesh();
     //float4x4 model_matrix(float4(0.5, 0.5, 0.5, 1.0));
     //float4x4 model_matrix(float4(1.0, 1.0, 1.0, 1.0));
-    float4x4 model1_matrix = translationMatrix(-1.0, 1.0, -1.0);
-    float4x4 model2_matrix = translationMatrix(1.0, 1.0, 4.0);
+    //float4x4 model1_matrix = translationMatrix(-1.0, 1.0, -1.0);
+    float4x4 model1_matrix = identity();
+    //float4x4 model2_matrix = translationMatrix(1.0, 1.0, 4.0);
     Model mode1 = Model(mesh, model1_matrix);
-    Model mode2 = Model(mesh, model2_matrix);
+    //Model mode2 = Model(mesh, model2_matrix);
     models.push_back(mode1);
-    models.push_back(mode2);
+    //models.push_back(mode2);
     Scene s(models);
-    float3 eye(10, 10, -10);
+    float3 eye(0, 2, -2);
     float3 at(0, 0, 0);
-    float3 up(-1, 1, 1);
+    float3 up(0, 1, 0);
     s.view_matrix = lookAtMatrix(eye, at, up);
-    //s.view_matrix = identity();
     return s;
 }
 
@@ -643,8 +712,8 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
 }
 
 int test_triangle() {
-    int width = 16;
-    int height = 16;
+    int width = 256;
+    int height = 256;
 
     // Create Scene
     Scene scn = Scene::CreateTriangleScene();
@@ -721,9 +790,23 @@ void test_matrix4x4() {
     std::cout << C;
 }
 
+void test_lookat() {
+    float3 eye(-1, 0, 0);
+    float3 at(0, 0, 0);
+    float3 up(0, 1, 0);
+    float4x4 view_matrix = lookAtMatrix(eye, at, up);
+
+    float4 ws_point(1, 1, 1, 1);
+    float4 vs_point = view_matrix*ws_point;
+    std::cout << "View matrix\n";
+    std::cout << view_matrix;
+    std::cout << "WS Point = " << ws_point << "VS Point = " << vs_point << "\n";
+}
+
 int main() {
+    //test_lookat();
     test_triangle();
     test_quad();
     test_cube();
-    test_orthographics_cube();
-}
+    //test_orthographics_cube();
+} 
