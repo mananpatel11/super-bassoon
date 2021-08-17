@@ -172,28 +172,6 @@ float4x4 rotationMatrix() {
     return identity();
 }
 
-// //https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
-// float4x4 projectionMatrix2(const float near_plane, const float far_plane,
-//                           const float fov_horiz, const float fov_vert) {
-//     float    h, w, Q;
-
-//     w = (float)1/tan(fov_horiz*0.5);  // 1/tan(x) == cot(x)
-//     h = (float)1/tan(fov_vert*0.5);   // 1/tan(x) == cot(x)
-//     Q = far_plane/(far_plane - near_plane);
-
-//     float4x4 ret = float4x4();
-//     //std::cout << "w = " << w << "\n";
-//     //std::cout << "fov_horiz = " << tan(45) << "\n";
-//     ret.row0.x = w;
-//     ret.row1.y = h;
-//     ret.row2.z = Q;
-//     ret.row3.z = -Q*near_plane;
-//     ret.row2.w = 1;
-//     //std::cout << ret;
-//     //exit(0);
-//     return ret;
-// }
-
 //https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
 // Page 92 - Real-time rendering
 float4x4 perspectiveProjectionMatrix(const float near_plane, const float far_plane,
@@ -430,79 +408,6 @@ Mesh Mesh::createCubeMesh() {
     return Mesh(num_triangles, vertices, colors);
 }
 
-Mesh Mesh::createOrthographicsCubeMesh() {
-    std::vector<float3> vertices;
-    float3 v00(-0.5, 0.0, 0.8);
-    float3 v01(0.0, 0.0, 0.8);
-    float3 v02(0.0, -0.5, 0.8);
-    float3 v03(-0.5, -0.5, 0.8);
-    float3 v10(0.0, 0.5, -0.8);
-    float3 v11(0.5, 0.5, -0.8);
-    float3 v12(0.5, 0.0, -0.8);
-    float3 v13(0.0, 0.0, -0.8);
-    
-    // Front face
-    vertices.push_back(v00);
-    vertices.push_back(v01);
-    vertices.push_back(v02);
-    vertices.push_back(v02);
-    vertices.push_back(v03);
-    vertices.push_back(v00);
-
-    // Back face
-    vertices.push_back(v11);
-    vertices.push_back(v10);
-    vertices.push_back(v13);
-    vertices.push_back(v13);
-    vertices.push_back(v12);
-    vertices.push_back(v11);
-    
-    // Top face
-    vertices.push_back(v00);
-    vertices.push_back(v10);
-    vertices.push_back(v11);
-    vertices.push_back(v11);
-    vertices.push_back(v01);
-    vertices.push_back(v00);
-
-    // Bottom face
-    vertices.push_back(v13);
-    vertices.push_back(v03);
-    vertices.push_back(v02);
-    vertices.push_back(v02);
-    vertices.push_back(v12);
-    vertices.push_back(v13);
-    
-    // Left face
-    vertices.push_back(v10);
-    vertices.push_back(v00);
-    vertices.push_back(v03);
-    vertices.push_back(v03);
-    vertices.push_back(v13);
-    vertices.push_back(v10);
-
-    // Right face
-    vertices.push_back(v01);
-    vertices.push_back(v11);
-    vertices.push_back(v12);
-    vertices.push_back(v12);
-    vertices.push_back(v02);
-    vertices.push_back(v01);
-
-    std::vector<float3> colors;
-    float3 c0(1.0, 0.0, 0.0);
-    float3 c1(0.0, 1.0, 0.0);
-    float3 c2(0.0, 0.0, 1.0);
-    int num_faces = 6;
-    int num_triangles = num_faces * 2;
-    for (int i = 0; i < num_triangles; i++) {
-        colors.push_back(c0);
-        colors.push_back(c1);
-        colors.push_back(c2);
-    } 
-    return Mesh(num_triangles, vertices, colors);
-}
-
 class Model {
     public:
     Model(Mesh _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
@@ -610,11 +515,6 @@ float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
     float3 zaxis = normal(at - eye);
     float3 xaxis = normal(cross(up, zaxis));
     float3 yaxis = cross(zaxis, xaxis);
-    
-    // float4 row0(xaxis.x, yaxis.x, zaxis.x, 0);
-    // float4 row1(xaxis.y, yaxis.y, zaxis.y, 0);
-    // float4 row2(xaxis.z, yaxis.z, zaxis.z, 0);
-    // float4 row3(-dot(xaxis, eye), -dot(yaxis, eye), -dot(zaxis, eye), 1);
 
     float4 row0(xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, eye));
     float4 row1(yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, eye));
@@ -636,7 +536,6 @@ class Scene {
     static Scene CreateTriangleScene();
     static Scene CreateQuadScene();
     static Scene CreateCubeScene();
-    static Scene CreateOrthographicCubeScene();
 };
 
 Scene Scene::CreateTriangleScene() {
@@ -646,12 +545,10 @@ Scene Scene::CreateTriangleScene() {
     std::vector<Model> models;
     models.push_back(model);
     Scene s(models);
-    float3 eye(0, 1, -1);
+    float3 eye(0, 0, -1);
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
     s.view_matrix = lookAtMatrix(eye, at, up);
-    //std::cout << s.view_matrix;
-    //exit(0);
     return s;
 }
 
@@ -671,15 +568,9 @@ Scene Scene::CreateQuadScene() {
 Scene Scene::CreateCubeScene() {
     std::vector<Model> models;
     Mesh mesh = Mesh::createCubeMesh();
-    //float4x4 model_matrix(float4(0.5, 0.5, 0.5, 1.0));
-    //float4x4 model_matrix(float4(1.0, 1.0, 1.0, 1.0));
-    //float4x4 model1_matrix = translationMatrix(-1.0, 1.0, -1.0);
-    float4x4 model1_matrix = identity();
-    //float4x4 model2_matrix = translationMatrix(1.0, 1.0, 4.0);
-    Model mode1 = Model(mesh, model1_matrix);
-    //Model mode2 = Model(mesh, model2_matrix);
-    models.push_back(mode1);
-    //models.push_back(mode2);
+    float4x4 model_matrix = identity();
+    Model mode = Model(mesh, model_matrix);
+    models.push_back(mode);
     Scene s(models);
     float3 eye(0, 2, -2);
     float3 at(0, 0, 0);
@@ -688,27 +579,18 @@ Scene Scene::CreateCubeScene() {
     return s;
 }
 
-Scene Scene::CreateOrthographicCubeScene() {
-    Mesh mesh = Mesh::createOrthographicsCubeMesh();
-    Model model = Model(mesh, identity());
-    std::vector<Model> models;
-    models.push_back(model);
-    return Scene(models);
-}
-
 class Renderer {
     public:
     static void Render(FrameBuffer &fb, Scene &scn);
 };
 
 void Renderer::Render(FrameBuffer &fb, Scene &scn) {
-    std::cout << "Rendering started\n";
+    // std::cout << "Rendering started\n";
     for (int i = 0; i < scn.models.size(); i++) {
         Model &m = scn.models[i];
-        std::cout << scn.view_matrix;
         m.draw(fb, scn.view_matrix);
     }
-    std::cout << "Rendering ended\n";
+    // std::cout << "Rendering ended\n";
 }
 
 int test_triangle() {
@@ -765,24 +647,6 @@ int test_cube() {
     return 0;
 }
 
-int test_orthographics_cube() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateOrthographicCubeScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("orthographics_cube.ppm");
-    return 0;
-}
-
 void test_matrix4x4() {
     float4x4 A = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
     float4x4 B = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
@@ -790,23 +654,8 @@ void test_matrix4x4() {
     std::cout << C;
 }
 
-void test_lookat() {
-    float3 eye(-1, 0, 0);
-    float3 at(0, 0, 0);
-    float3 up(0, 1, 0);
-    float4x4 view_matrix = lookAtMatrix(eye, at, up);
-
-    float4 ws_point(1, 1, 1, 1);
-    float4 vs_point = view_matrix*ws_point;
-    std::cout << "View matrix\n";
-    std::cout << view_matrix;
-    std::cout << "WS Point = " << ws_point << "VS Point = " << vs_point << "\n";
-}
-
 int main() {
-    //test_lookat();
     test_triangle();
     test_quad();
     test_cube();
-    //test_orthographics_cube();
 } 
