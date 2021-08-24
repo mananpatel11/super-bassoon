@@ -407,26 +407,13 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
 }
 
 void game_loop() {
-/*
-    While window is not closed
-        process mouse/keyboard updates
-        update the scene based on those updates
-        render the scene
-        let window know that image has been updated        
-*/
-/*
-    What is a window? It is the abstraction of the GUI window.
-    Creating a window means one should see an empty window
-    Drawing in the window means the framebuffer contents should be 
-    drawn on the window
-    Process inputs means all key/mouse events are processed. 
-*/
     int width = 256;
     int height = 256;
 
     // Create Scene
-    Scene scn = Scene::CreateTriangleScene();
-
+    // Scene scn = Scene::CreateTriangleScene();
+    Scene scn = Scene::CreateCubeScene();
+ 
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 
@@ -435,7 +422,7 @@ void game_loop() {
 
     Window w(width, height);
     w.create();
-    
+    update_surface(w.surface, fb);
     while (!w.should_close) {
         //std::cout << "Here\n";
         EventRecord e = w.process_events();
@@ -455,7 +442,7 @@ void game_loop() {
 
 int main() {
     game_loop();
-    test_triangle();
-    test_quad();
-    test_cube();
+    //test_triangle();
+    //test_quad();
+    //test_cube();
 } 
