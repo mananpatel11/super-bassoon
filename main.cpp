@@ -254,7 +254,7 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
 
 
 struct Camera {
-    Camera() : yaw(0), pitch(0) {}
+    Camera() : yaw(M_PI_2), pitch(0) {}
     float yaw; // yaw
     float pitch; // pitch
     void update(const EventRecord& record) {
@@ -283,6 +283,7 @@ class Scene {
 void Scene::update(const Camera &c) {
     //float3 eye(sin(c.yaw), 0, -cos(c.yaw));
     float3 eye(cos(c.yaw) * cos(c.pitch), sin(c.pitch), -sin(c.yaw)*cos(c.pitch));
+    std::cout << "Eye = " << eye << "\n"; 
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
     //std::cout << "Camera position.x = " << c.position.x << "\n";

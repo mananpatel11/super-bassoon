@@ -32,6 +32,11 @@ float3 normal(float3 vec) {
     return (vec/magnitude(vec));
 }
 
+std::ostream& operator<<(std::ostream& os, float3& vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, float4& vec) {
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
     return os;

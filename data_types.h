@@ -23,6 +23,7 @@ float dot(float3 lhs, float3 rhs);
 float3 cross(float3 a, float3 b);
 float magnitude(float3 vec);
 float3 normal(float3 vec);
+std::ostream& operator<<(std::ostream& os, float3 &vec3);
 
 struct float4 {
     float x;
