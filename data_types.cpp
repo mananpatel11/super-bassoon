@@ -166,6 +166,20 @@ float4x4 orthographicProjectionMatrix(float w, float h, float zn, float zf) {
     return ret;
 }
 
+// https://stackoverflow.com/questions/349050/calculating-a-lookat-matrix
+float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
+    float3 zaxis = normal(at - eye);
+    float3 xaxis = normal(cross(up, zaxis));
+    float3 yaxis = cross(zaxis, xaxis);
+
+    float4 row0(xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, eye));
+    float4 row1(yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, eye));
+    float4 row2(zaxis.x, zaxis.y, zaxis.z, -dot(zaxis, eye));
+    float4 row3(0, 0, 0, 1);
+    float4x4 view_matrix(row0, row1, row2, row3);
+    return view_matrix;
+}
+
 std::ostream& operator<<(std::ostream &os, Color &c) {
     os << uint(c.r) << " " << uint(c.g) << " " << uint(c.b) << " ";
     return os;

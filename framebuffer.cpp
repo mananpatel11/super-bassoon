@@ -31,3 +31,9 @@ void FrameBuffer::DumpAsPPMFile(std::string filename) {
 Color FrameBuffer::readColor(Coord2D coord) {
     return color_buffer[coord.y*width + coord.x];
 }
+
+void FrameBuffer::clear() {
+    for (size_t i = 0; i < color_buffer.size() - 1; i++) {
+        color_buffer[i] = Color(0, 0, 0);
+    }
+}

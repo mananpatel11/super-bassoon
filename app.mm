@@ -22,21 +22,10 @@ static NSWindow *win;
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
-    NSLog(@"Draw Rect called");
+    //NSLog(@"Draw Rect called");
     int width = w->width;
     int height = w->height;
     int bytesPerPixel = 4;
-    // unsigned char *surface = (unsigned char *)malloc(width*height*bytesPerPixel);
-    // for (int x = 0; x < width; x++) {
-    //     for (int y = 0; y < height; y++) {
-    //         int red_index = (y*width + x)*4;
-    //         if (y % 2 == 0) {
-    //             surface[red_index] = (unsigned char)255;
-    //         } else {
-    //             surface[red_index] = (unsigned char)0;
-    //         }
-    //     }
-    // }
     NSBitmapImageRep *rep = [[[NSBitmapImageRep alloc]
             initWithBitmapDataPlanes:&w->surface
                           pixelsWide:width
@@ -58,8 +47,8 @@ static NSWindow *win;
 }
 
 - (void)keyDown:(NSEvent *)event {
-    NSLog(@"Key down event");
-    w->handle_key_down();
+    //NSLog(@"Key down event");
+    w->handle_key_down([event keyCode]);
 }
 @end
 
@@ -175,13 +164,16 @@ void Window::destroy() {
     g_autoreleasepool = [[NSAutoreleasePool alloc] init];
 }
 
-// TODO: 
-void Window::handle_key_down() {
-    std::cout << "Handling key down\n";
-    record.a++;
+void Window::handle_key_down(int virtual_key) {
+    std::cout << "Recieved key " << virtual_key << "\n";
+    switch (virtual_key) {
+        case 0x00: record.left  += 0.1;     break; // a
+        case 0x02: record.right += 0.1;     break; // d
+        case 0x01: record.down  += 0.1;     break; // s
+        case 0x0D: record.up    += 0.1;     break; // w
+    }
 }
 
-// TODO:
 EventRecord Window::process_events() {
     // First flush all events
     while(1) {
@@ -212,7 +204,10 @@ void Window::reset_record() {
 }
 
 void EventRecord::reset() {
-    a = 0;
+    left = 0;
+    right = 0;
+    up = 0;
+    down = 0;
 }
 
 void Window::print_surface() {

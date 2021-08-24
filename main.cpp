@@ -189,15 +189,17 @@ float edge_function(float4 a, float4 b, float4 c) {
 }
 
 void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
+    fb.clear(); // Clear the framebuffer
+
     for (int i = 0; i < mesh.num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            float4x4 perspective_matrix = perspectiveProjectionMatrix(0.01, 1.0, M_PI_2*3/2, M_PI_2*3/2);
-            float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0.1, 5.0);
-            float4x4 projection_matrix = perspective_matrix;
+            float4x4 perspective_matrix = perspectiveProjectionMatrix(0.01, 10.0, M_PI_2*3/2, M_PI_2*3/2);
+            float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
+            float4x4 projection_matrix = ortho_matrix;
             Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
         }
@@ -249,19 +251,18 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     }
 }
 
-// https://stackoverflow.com/questions/349050/calculating-a-lookat-matrix
-float4x4 lookAtMatrix(float3 eye, float3 at, float3 up) {
-    float3 zaxis = normal(at - eye);
-    float3 xaxis = normal(cross(up, zaxis));
-    float3 yaxis = cross(zaxis, xaxis);
 
-    float4 row0(xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, eye));
-    float4 row1(yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, eye));
-    float4 row2(zaxis.x, zaxis.y, zaxis.z, -dot(zaxis, eye));
-    float4 row3(0, 0, 0, 1);
-    float4x4 view_matrix(row0, row1, row2, row3);
-    return view_matrix;
-}
+
+struct Camera {
+    Camera() : hori_angle(0), vert_angle(0) {}
+    float hori_angle;
+    float vert_angle;
+    void update(const EventRecord& record) {
+        hori_angle += record.right - record.left;
+        vert_angle += record.up - record.down;
+        std::cout << "hori_angle = " << hori_angle << "\n"; 
+    }
+};
 
 class Scene {
     public:
@@ -270,12 +271,22 @@ class Scene {
     float4x4 projection_matrix;
     float4x4 view_matrix;
 
+    void update(const Camera &c);
+
     // Constructors
     //static Scene CreateSceneFromGLTF(std::string filename);
     static Scene CreateTriangleScene();
     static Scene CreateQuadScene();
     static Scene CreateCubeScene();
 };
+
+void Scene::update(const Camera &c) {
+    float3 eye(sin(c.hori_angle), 0, -cos(c.hori_angle));
+    float3 at(0, 0, 0);
+    float3 up(0, 1, 0);
+    //std::cout << "Camera position.x = " << c.position.x << "\n";
+    view_matrix = lookAtMatrix(eye, at, up);
+}
 
 Scene Scene::CreateTriangleScene() {
     Mesh mesh = Mesh::createTriangleMesh();
@@ -311,7 +322,7 @@ Scene Scene::CreateCubeScene() {
     Model mode = Model(mesh, model_matrix);
     models.push_back(mode);
     Scene s(models);
-    float3 eye(0, 2, -2);
+    float3 eye(2, 0, -1);
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
     s.view_matrix = lookAtMatrix(eye, at, up);
@@ -396,12 +407,16 @@ void test_matrix4x4() {
 void update_surface(unsigned char *surface, FrameBuffer &fb) {
     for (int x = 0; x < fb.width; x++) {
         for (int y = 0; y < fb.height; y++) {
-            surface[4*(fb.width*y + x) + 0] = fb.readColor(Coord2D(x, y)).r;
-            // surface[4*(fb.width*y + x) + 0] = 255;
-            surface[4*(fb.width*y + x) + 1] = fb.readColor(Coord2D(x, y)).g;
-            surface[4*(fb.width*y + x) + 2] = fb.readColor(Coord2D(x, y)).b;
-            surface[4*(fb.width*y + x) + 3] = 0;
-            
+            // surface[4*(fb.width*y + x) + 0] = fb.readColor(Coord2D(x, y)).r;
+            // surface[4*(fb.width*y + x) + 1] = fb.readColor(Coord2D(x, y)).g;
+            // surface[4*(fb.width*y + x) + 2] = fb.readColor(Coord2D(x, y)).b;
+            // surface[4*(fb.width*y + x) + 3] = 0;
+            int y1 = fb.height-y;
+            int x1 = fb.width-x;   
+            surface[4*(fb.width*y1 + x1) + 0] = fb.readColor(Coord2D(x, y)).r;
+            surface[4*(fb.width*y1 + x1) + 1] = fb.readColor(Coord2D(x, y)).g;
+            surface[4*(fb.width*y1 + x1) + 2] = fb.readColor(Coord2D(x, y)).b;
+            surface[4*(fb.width*y1 + x1) + 3] = 0;
         }
     }
 }
@@ -411,29 +426,29 @@ void game_loop() {
     int height = 256;
 
     // Create Scene
-    // Scene scn = Scene::CreateTriangleScene();
+    Camera cam;
+    //Scene scn = Scene::CreateTriangleScene();
     Scene scn = Scene::CreateCubeScene();
  
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
     Window w(width, height);
     w.create();
-    update_surface(w.surface, fb);
     while (!w.should_close) {
-        //std::cout << "Here\n";
+        // Get keyboard events
         EventRecord e = w.process_events();
-        if (e.a > 0) {
-            update_surface(w.surface, fb);
-            //w.print_surface();
-            w.present();
-        }
-        // Use the record to update transform
-        // update scene and render
-        // Reset event record
+        // Send record of events to camera to update
+        cam.update(e);
+        // update scene using updated camera
+        scn.update(cam);
+        // render scene
+        Renderer::Render(fb, scn);
+        // Update the window surface with new contents from the fb
+        update_surface(w.surface, fb);
+        // Tell view to present the new surface
+        w.present();
+        // Reset the record to process new keyboard events
         w.reset_record();
     }
     

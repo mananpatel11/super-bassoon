@@ -70,7 +70,7 @@ float4x4 rotationMatrix();
 float4x4 perspectiveProjectionMatrix(const float near_plane, const float far_plane,
                           const float fov_horiz, const float fov_vert);
 float4x4 orthographicProjectionMatrix(float w, float h, float zn, float zf);
-
+float4x4 lookAtMatrix(float3 eye, float3 at, float3 up);
 
 struct Color {
     uint8_t r;

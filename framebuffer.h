@@ -13,4 +13,5 @@ class FrameBuffer {
     int height;
     int max_component_value = 255;
     std::vector<Color> color_buffer;
+    void clear(); // clear color_buffer
 };

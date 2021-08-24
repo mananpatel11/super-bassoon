@@ -2,7 +2,11 @@
 #include <stdlib.h>
 
 struct EventRecord {
-    int a;
+    EventRecord() : left(0), right(0), up(0), down(0) {}
+    float left;
+    float right;
+    float up;
+    float down;
     void reset();
 };
 
@@ -17,7 +21,7 @@ public:
     // Destroy the window/app etc
     void destroy();
     // Action to perform when key down is pressed
-    void handle_key_down();
+    void handle_key_down(int virtual_key);
     // Process all events and create an EventRecord
     EventRecord process_events();
     // Check if window was closed
