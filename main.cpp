@@ -5,270 +5,9 @@
 #include <cmath>
 #include <math.h>
 
-struct float3 {
-    float x;
-    float y;
-    float z;
-    float3() = default;
-    float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
-};
-
-float3 operator*(float lhs, float3 rhs) {
-    return float3(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z);
-}
-
-float3 operator/(float3 num, float den) {
-    return float3(num.x/den, num.y/den, num.z/den);
-}
-
-float3 operator+(float3 lhs, float3 rhs) {
-    return float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
-}
-
-float3 operator-(float3 lhs, float3 rhs) {
-    return float3(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z);
-}
-
-float dot(float3 lhs, float3 rhs) {
-    return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z);
-}
-
-float3 cross(float3 a, float3 b) {
-    return float3((a.y*b.z - a.z*b.y), -(a.x*b.z - a.z*b.x), (a.x*b.y - a.y*b.x));
-}
-
-float magnitude(float3 vec) {
-    return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z);
-}
-
-float3 normal(float3 vec) {
-    return (vec/magnitude(vec));
-}
-
-struct float4 {
-    float x;
-    float y;
-    float z;
-    float w;
-    float4() = default;
-    float4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
-};
-
-std::ostream& operator<<(std::ostream& os, float4& vec) {
-    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
-    return os;
-}
-
-float4 operator*(float lhs, float4 rhs) {
-    return float4(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z, lhs*rhs.w);
-}
-
-float4 operator/(float4 num, float den) {
-    return float4(num.x/den, num.y/den, num.z/den, num.w/den);
-}
-
-float4 operator+(float4 lhs, float4 rhs) {
-    return float4(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
-}
-
-float4 operator-(float4 lhs, float4 rhs) {
-    return float4(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
-}
-
-float dot(float4 lhs, float4 rhs) {
-    return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
-}
-
-float magnitude(float4 vec) {
-    return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w);
-}
-
-float4 normal(float4 vec) {
-    return (vec/magnitude(vec));
-}
-
-struct float4x4 {
-    float4 row0;
-    float4 row1;
-    float4 row2;
-    float4 row3;
-    float4x4() = default;
-    float4x4(float4 diagonal) : row0(float4()), row1(float4()), row2(float4()), row3(float4()) {
-        row0.x = diagonal.x;
-        row1.y = diagonal.y;
-        row2.z = diagonal.z;
-        row3.w = diagonal.w;
-    }
-    float4x4(float4 _r0, float4 _r1, float4 _r2, float4 _r3) : row0(_r0), row1(_r1), row2(_r2), row3(_r3) {}  
-};
-
-std::ostream& operator<<(std::ostream& os, float4x4 M) {
-    os << "\n";
-    os << M.row0 << "\n";
-    os << M.row1 << "\n";
-    os << M.row2 << "\n";
-    os << M.row3 << "\n";
-    os << "\n";
-    return os;
-}
-
-float4 operator*(float4x4 lhs, float4 rhs) {
-        return float4(dot(lhs.row0, rhs), dot(lhs.row1, rhs), dot(lhs.row2, rhs), dot(lhs.row3, rhs));
-}
-
-float4x4 operator/(float4x4 M, float scalar) {
-    float4x4 A = M;
-    A.row0 = M.row0/scalar;
-    A.row1 = M.row1/scalar;
-    A.row2 = M.row2/scalar;
-    A.row3 = M.row3/scalar;
-    return M;
-}
-
-float4x4 operator*(float4x4 a, float4x4 b) {
-    float4x4 result;
-
-    result.row0.x = dot(a.row0, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row0.y = dot(a.row0, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row0.z = dot(a.row0, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row0.w = dot(a.row0, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
-
-    result.row1.x = dot(a.row1, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row1.y = dot(a.row1, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row1.z = dot(a.row1, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row1.w = dot(a.row1, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
-
-    result.row2.y = dot(a.row2, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row2.z = dot(a.row2, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row2.x = dot(a.row2, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row2.w = dot(a.row2, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
-
-    result.row3.x = dot(a.row3, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row3.y = dot(a.row3, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row3.z = dot(a.row3, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row3.w = dot(a.row3, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
-
-    return result;
-}
-
-float4x4 identity() {
-    float4x4 M(float4(1.0, 1.0, 1.0, 1.0));
-    return M;
-}
-
-float4x4 translationMatrix(float x, float y, float z) {
-    float4x4 T = identity();
-    T.row0.w = x;
-    T.row1.w = y;
-    T.row2.w = z;
-    return T;
-}
-
-float4x4 scalingMatrix(float x, float y, float z) {
-    return float4x4(float4(x, y, z, 1.0));
-}
-
-float4x4 rotationMatrix() {
-    return identity();
-}
-
-//https://docs.microsoft.com/en-us/windows/win32/direct3d9/projection-transform#a-w-friendly-projection-matrix
-// Page 92 - Real-time rendering
-float4x4 perspectiveProjectionMatrix(const float near_plane, const float far_plane,
-                          const float fov_horiz, const float fov_vert) {
-    float    h, w, Q;
-
-    w = (float)1/tan(fov_horiz*0.5);  // 1/tan(x) == cot(x)
-    h = (float)1/tan(fov_vert*0.5);   // 1/tan(x) == cot(x)
-    Q = far_plane/(far_plane - near_plane);
-
-    float4x4 ret = float4x4();
-    ret.row0.x = w;
-    ret.row1.y = h;
-    ret.row2.z = Q;
-    ret.row2.w = -Q*near_plane;
-    ret.row3.z = 1;
-    return ret;
-}
-
-// https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixortholh
-// Page 92 - Real-time rendering
-float4x4 orthographicProjectionMatrix(float w, float h, float zn, float zf) {
-    float4x4 ret = float4x4();
-    ret.row0.x = 2.0/w;
-    ret.row1.y = 2.0/h;
-    ret.row2.z = 1.0/(zf-zn);
-    ret.row2.w = -zn/(zf-zn);
-    ret.row3.w = 1.0;
-    return ret;
-}
-
-struct Color {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    Color() : r(0), g(0), b(0) {}
-    Color(float3 col) {
-        r = col.x * 255;
-        g = col.y * 255;
-        b = col.z * 255;
-    }
-    Color(uint8_t _r, uint8_t _g, uint8_t _b) : r(_r), g(_g), b(_b) {}
-};
-
-struct Coord2D {
-    int x;
-    int y;
-    Coord2D() = default;
-    Coord2D(int _x, int _y) : x(_x), y(_y) {}
-};
-
-std::ostream& operator<<(std::ostream &os, Color &c) {
-    os << uint(c.r) << " " << uint(c.g) << " " << uint(c.b) << " ";
-    return os;
-}
-
-class FrameBuffer {
-    public:
-    FrameBuffer(int _width, int _height) : width(_width), height(_height), color_buffer(std::vector<Color>(_width * _height)) {}
-    void DumpAsPPMFile(std::string filename);
-    void writeColor(Coord2D coord, Color c);
-    // Color readColor(Coord2D coord);
-    // void writeDepth(Coord2D coord, uint8_t depth);
-    // uint8_t readDepth(Coord2D coord);
-    int width;
-    int height;
-    int max_component_value = 255;
-    std::vector<Color> color_buffer;
-};
-
-void FrameBuffer::writeColor(Coord2D coord, Color c) {
-    //std::cout << "Writing color at x = " << coord.x << " y = " << coord.y << "\n";
-    color_buffer[coord.y*width + coord.x] = c;
-}
-
-void FrameBuffer::DumpAsPPMFile(std::string filename) {
-    std::fstream fs(filename, std::ios_base::out);
-    if (!fs.is_open()) {
-        std::cerr << "Failed to open file " << filename << " for writing\n";
-        exit(-1);
-    }
-    /*
-    P3
-    256 256 // Width and Height
-    255     // Max value of each channel
-    r g b r g b r g b...
-    */
-    fs << "P3\n";
-    fs << width << " " << height << "\n";
-    fs << max_component_value << "\n";
-    for (int y = height-1; y >= 0; y--) {
-        for (int x = 0; x < width; x++) {
-            Color c = color_buffer[y*width + x];
-            fs << c;
-        }
-    }
-}
+#include "data_types.h"
+#include "framebuffer.h"
+#include "window.h"
 
 // Mesh represents the geometry of the object in terms of
 // vertices/faces/normals/texcoords etc.
@@ -654,7 +393,68 @@ void test_matrix4x4() {
     std::cout << C;
 }
 
+void update_surface(unsigned char *surface, FrameBuffer &fb) {
+    for (int x = 0; x < fb.width; x++) {
+        for (int y = 0; y < fb.height; y++) {
+            surface[4*(fb.width*y + x) + 0] = fb.readColor(Coord2D(x, y)).r;
+            // surface[4*(fb.width*y + x) + 0] = 255;
+            surface[4*(fb.width*y + x) + 1] = fb.readColor(Coord2D(x, y)).g;
+            surface[4*(fb.width*y + x) + 2] = fb.readColor(Coord2D(x, y)).b;
+            surface[4*(fb.width*y + x) + 3] = 0;
+            
+        }
+    }
+}
+
+void game_loop() {
+/*
+    While window is not closed
+        process mouse/keyboard updates
+        update the scene based on those updates
+        render the scene
+        let window know that image has been updated        
+*/
+/*
+    What is a window? It is the abstraction of the GUI window.
+    Creating a window means one should see an empty window
+    Drawing in the window means the framebuffer contents should be 
+    drawn on the window
+    Process inputs means all key/mouse events are processed. 
+*/
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateTriangleScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    Window w(width, height);
+    w.create();
+    
+    while (!w.should_close) {
+        //std::cout << "Here\n";
+        EventRecord e = w.process_events();
+        if (e.a > 0) {
+            update_surface(w.surface, fb);
+            //w.print_surface();
+            w.present();
+        }
+        // Use the record to update transform
+        // update scene and render
+        // Reset event record
+        w.reset_record();
+    }
+    
+    w.destroy();
+}
+
 int main() {
+    game_loop();
     test_triangle();
     test_quad();
     test_cube();
