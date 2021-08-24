@@ -254,13 +254,13 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
 
 
 struct Camera {
-    Camera() : hori_angle(0), vert_angle(0) {}
-    float hori_angle;
-    float vert_angle;
+    Camera() : yaw(0), pitch(0) {}
+    float yaw; // yaw
+    float pitch; // pitch
     void update(const EventRecord& record) {
-        hori_angle += record.right - record.left;
-        vert_angle += record.up - record.down;
-        std::cout << "hori_angle = " << hori_angle << "\n"; 
+        yaw += record.right - record.left;
+        pitch += record.up - record.down;
+        std::cout << "hori_angle = " << yaw << "\n"; 
     }
 };
 
@@ -281,7 +281,8 @@ class Scene {
 };
 
 void Scene::update(const Camera &c) {
-    float3 eye(sin(c.hori_angle), 0, -cos(c.hori_angle));
+    //float3 eye(sin(c.yaw), 0, -cos(c.yaw));
+    float3 eye(cos(c.yaw) * cos(c.pitch), sin(c.pitch), -sin(c.yaw)*cos(c.pitch));
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
     //std::cout << "Camera position.x = " << c.position.x << "\n";
@@ -407,12 +408,8 @@ void test_matrix4x4() {
 void update_surface(unsigned char *surface, FrameBuffer &fb) {
     for (int x = 0; x < fb.width; x++) {
         for (int y = 0; y < fb.height; y++) {
-            // surface[4*(fb.width*y + x) + 0] = fb.readColor(Coord2D(x, y)).r;
-            // surface[4*(fb.width*y + x) + 1] = fb.readColor(Coord2D(x, y)).g;
-            // surface[4*(fb.width*y + x) + 2] = fb.readColor(Coord2D(x, y)).b;
-            // surface[4*(fb.width*y + x) + 3] = 0;
-            int y1 = fb.height-y;
-            int x1 = fb.width-x;   
+            int y1 = fb.height-y; // Flip Y
+            int x1 = fb.width-x;  // Flip X
             surface[4*(fb.width*y1 + x1) + 0] = fb.readColor(Coord2D(x, y)).r;
             surface[4*(fb.width*y1 + x1) + 1] = fb.readColor(Coord2D(x, y)).g;
             surface[4*(fb.width*y1 + x1) + 2] = fb.readColor(Coord2D(x, y)).b;
