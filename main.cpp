@@ -468,7 +468,7 @@ void test_json() {
     std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
     std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
     gltf >> j;
-    //std::cout << gltf << "\n";
+    std::cout << j << "\n";
 }
 
 int main() {
