@@ -74,17 +74,15 @@ Mesh Mesh::createQuadMesh() {
 
 Mesh Mesh::createCubeMesh() {
     std::vector<float3> vertices;
-    // f = front, b = back
-    // u = up, d = down
-    // l = left, r = right
-    float3 v00(-0.8, 0.8, 0.8);
-    float3 v01(0.8, 0.8, 0.8);
-    float3 v02(0.8, -0.8, 0.8);
-    float3 v03(-0.8, -0.8, 0.8);
-    float3 v10(-0.8, 0.8, -0.8);
-    float3 v11(0.8, 0.8, -0.8);
-    float3 v12(0.8, -0.8, -0.8);
-    float3 v13(-0.8, -0.8, -0.8);
+
+    float3 v00(-0.8, 0.8, -0.8);
+    float3 v01(0.8, 0.8, -0.8);
+    float3 v02(0.8, -0.8, -0.8);
+    float3 v03(-0.8, -0.8, -0.8);
+    float3 v10(-0.8, 0.8, 0.8);
+    float3 v11(0.8, 0.8, 0.8);
+    float3 v12(0.8, -0.8, 0.8);
+    float3 v13(-0.8, -0.8, 0.8);
     
     // Front face
     vertices.push_back(v00);
@@ -200,8 +198,8 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
 
     float4x4 perspective_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
     float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
-    float4x4 projection_matrix = perspective_matrix;
-    // float4x4 projection_matrix = ortho_matrix;
+    // float4x4 projection_matrix = perspective_matrix;
+    float4x4 projection_matrix = ortho_matrix;
     for (int i = 0; i < mesh.num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
