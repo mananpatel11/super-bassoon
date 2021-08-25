@@ -6,7 +6,7 @@
 			"label": "build basoon",
 			"command": "/usr/bin/clang++",
 			"args": [
-				"-std=c++14",
+				"-std=c++17",
 				"-g",
 				"-framework",
 				"Cocoa",
