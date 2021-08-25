@@ -5,11 +5,15 @@
 #include <cmath>
 #include <math.h>
 #include <random>
-#include "json.hpp"
 
 #include "data_types.h"
 #include "framebuffer.h"
 #include "window.h"
+
+#include "json.hpp"
+#include "lodepng.h"
+
+using json = nlohmann::json;
 
 // Mesh represents the geometry of the object in terms of
 // vertices/faces/normals/texcoords etc.
@@ -459,18 +463,17 @@ void game_loop() {
     w.destroy();
 }
 
-using json = nlohmann::json;
-
 void test_json() {
     json j;
-    std::fstream f("test.json");
-    f >> j;
-    std::cout << j["name"] << "\n";
+    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
+    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
+    gltf >> j;
+    //std::cout << gltf << "\n";
 }
 
 int main() {
-    //test_json();
-    game_loop();
+    test_json();
+    //game_loop();
     //test_triangle();
     //test_quad();
     //test_cube();
