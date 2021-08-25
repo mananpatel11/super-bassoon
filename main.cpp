@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <math.h>
+#include <random>
 
 #include "data_types.h"
 #include "framebuffer.h"
@@ -133,16 +134,22 @@ Mesh Mesh::createCubeMesh() {
     vertices.push_back(v02);
     vertices.push_back(v01);
 
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<> distrib(0,5);
+
     std::vector<float3> colors;
     float3 c0(1.0, 0.0, 0.0);
     float3 c1(0.0, 1.0, 0.0);
     float3 c2(0.0, 0.0, 1.0);
+    float3 c3(1.0, 1.0, 0.0);
+    float3 c4(0.0, 1.0, 1.0);
+    float3 c5(1.0, 0.0, 1.0);
+    float3 color_options[6] = {c0, c1, c2, c3, c4, c5};
     int num_faces = 6;
     int num_triangles = num_faces * 2;
-    for (int i = 0; i < num_triangles; i++) {
-        colors.push_back(c0);
-        colors.push_back(c1);
-        colors.push_back(c2);
+    for (int i = 0; i < num_triangles*3; i++) {
+        colors.push_back(color_options[distrib(gen)]);
     } 
     return Mesh(num_triangles, vertices, colors);
 }
@@ -173,7 +180,7 @@ Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, 
     // std::cout << model_transform << "\n";
     vout.position = projection_matrix*view_transform*model_transform*vout.position;
     vout.position = vout.position/vout.position.w;
-    // std::cout << "Output position" << vout.position << "\n";
+    std::cout << "Output position" << vout.position << "\n";
     vout.color = color; 
     return vout;
 }
@@ -191,15 +198,17 @@ float edge_function(float4 a, float4 b, float4 c) {
 void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     fb.clear(); // Clear the framebuffer
 
+    float4x4 perspective_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
+    float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
+    float4x4 projection_matrix = perspective_matrix;
+    // float4x4 projection_matrix = ortho_matrix;
     for (int i = 0; i < mesh.num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             float3 pos_in = mesh.vertices[i*3 + vid];
             float3 color_in = mesh.colors[i*3 + vid];
-            float4x4 perspective_matrix = perspectiveProjectionMatrix(0.01, 10.0, M_PI_2*3/2, M_PI_2*3/2);
-            float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
-            float4x4 projection_matrix = ortho_matrix;
+            std::cout << projection_matrix << "\n";
             Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
         }
@@ -281,12 +290,9 @@ class Scene {
 };
 
 void Scene::update(const Camera &c) {
-    //float3 eye(sin(c.yaw), 0, -cos(c.yaw));
     float3 eye(cos(c.yaw) * cos(c.pitch), sin(c.pitch), -sin(c.yaw)*cos(c.pitch));
-    std::cout << "Eye = " << eye << "\n"; 
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
-    //std::cout << "Camera position.x = " << c.position.x << "\n";
     view_matrix = lookAtMatrix(eye, at, up);
 }
 
@@ -320,7 +326,8 @@ Scene Scene::CreateQuadScene() {
 Scene Scene::CreateCubeScene() {
     std::vector<Model> models;
     Mesh mesh = Mesh::createCubeMesh();
-    float4x4 model_matrix = identity();
+    //float4x4 model_matrix = identity();
+    float4x4 model_matrix = scalingMatrix(0.5, 0.5, 0.5);
     Model mode = Model(mesh, model_matrix);
     models.push_back(mode);
     Scene s(models);
@@ -425,7 +432,7 @@ void game_loop() {
 
     // Create Scene
     Camera cam;
-    //Scene scn = Scene::CreateTriangleScene();
+    // Scene scn = Scene::CreateTriangleScene();
     Scene scn = Scene::CreateCubeScene();
  
     // Create FrameBuffer
@@ -454,6 +461,7 @@ void game_loop() {
 }
 
 int main() {
+    
     game_loop();
     //test_triangle();
     //test_quad();
