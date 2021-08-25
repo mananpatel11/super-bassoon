@@ -5,6 +5,7 @@
 #include <cmath>
 #include <math.h>
 #include <random>
+#include "json.hpp"
 
 #include "data_types.h"
 #include "framebuffer.h"
@@ -458,8 +459,17 @@ void game_loop() {
     w.destroy();
 }
 
+using json = nlohmann::json;
+
+void test_json() {
+    json j;
+    std::fstream f("test.json");
+    f >> j;
+    std::cout << j["name"] << "\n";
+}
+
 int main() {
-    
+    //test_json();
     game_loop();
     //test_triangle();
     //test_quad();
