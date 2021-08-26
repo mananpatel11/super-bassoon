@@ -20,6 +20,7 @@ using json = nlohmann::json;
 class Mesh {
     public:
     Mesh(int _num_triangles, std::vector<float3> _vertices, std::vector<float3> _colors) : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
+    Mesh(int _num_triangles, std::vector<float3> _vertices) : num_triangles(_num_triangles), vertices(_vertices), colors(std::vector<float3>(_num_triangles*3, float3(1.0, 0.0, 0.0))) {}
     std::vector<float3> vertices;
     std::vector<float3> colors;
     int num_triangles;
@@ -430,6 +431,28 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
     }
 }
 
+std::vector<float3> access_float3_data(const json &j, std::string base_path, int accessor_id) {
+    std::vector<float3> data;
+    auto accessor = j["accessors"][accessor_id];
+    auto buffer_view = j["bufferViews"][int(accessor["bufferView"])];
+    int buffer_index = int(buffer_view["buffer"]);
+    std::string bin_uri = j["buffers"][buffer_index]["uri"];
+    std::string bin_path = base_path + bin_uri;
+    std::ifstream bin_stream(bin_path, std::ios::binary);
+    int count = accessor["count"];
+    std::cout << count << "\n";
+    for (int i = 0; i < count; i++) {
+        float x;
+        float y;
+        float z;
+        bin_stream.read(reinterpret_cast<char*>(&x), sizeof(float));
+        bin_stream.read(reinterpret_cast<char*>(&y), sizeof(float));
+        bin_stream.read(reinterpret_cast<char*>(&z), sizeof(float));
+        data.push_back(float3(x, y, z));
+    }
+    return data;
+}
+
 Scene create_scene_from_gltf() {
     json j;
     std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
@@ -456,39 +479,11 @@ Scene create_scene_from_gltf() {
                     std::cout << "Primitive = " << primitive << "\n";
                     auto attributes = primitive["attributes"];
                     std::cout << "Attributes = " << attributes << "\n";
+                    // Get positions
                     int position_accessor_id = attributes["POSITION"];
-                    auto accessor = accessors[position_accessor_id];
-                    std::cout << accessor << "\n";
-                    int buffer_view_id = accessor["bufferView"];
-                    auto buffer_view = bufferViews[buffer_view_id];
-                    int buffer_index = buffer_view["buffer"];
-                    auto buffer = buffers[buffer_index];
-                    std::string buffer_uri = buffer["uri"];
-                    int buffer_byte_length = buffer["byteLength"];
-
-                    std::cout << "buffer_uri = " << buffer_uri << "\n";
-                    std::cout << "buffer_byte_length = " << buffer_byte_length << "\n";
-                    std::string buffer_path = base_path + buffer_uri;
-                    std::ifstream bin_file(buffer_path, std::ios::binary);
-                    std::vector<float3> positions;
-                    std::vector<float3> colors;
-
-                    for (int i = 0; i < 3; i++) {
-                        float x;
-                        float y;
-                        float z;
-                        bin_file.read(reinterpret_cast<char*>(&x), sizeof(float));
-                        bin_file.read(reinterpret_cast<char*>(&y), sizeof(float));
-                        bin_file.read(reinterpret_cast<char*>(&z), sizeof(float));
-
-                        positions.push_back(float3(x, y, z));
-                        colors.push_back(float3(1.0, 0.0, 0.0));
-                    }
-                    for (auto position : positions) {
-                        std::cout << position << "\n";
-                    }
-
-                    Mesh mesh(3, positions, colors);
+                    std::vector<float3> positions = access_float3_data(j, base_path, position_accessor_id);
+                    
+                    Mesh mesh(3, positions);
                     Model model(mesh, identity());
                     scn.models.push_back(model);
                 }
