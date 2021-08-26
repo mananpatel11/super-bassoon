@@ -430,23 +430,11 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
     }
 }
 
-
-void test_json() {
-    json j;
-    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
-    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
-    gltf >> j;
-    auto accessors = j["accessors"];
-    std::cout << accessors.is_array() << "\n";
-    std::cout << j["accessors"] << "\n";
-}
-
 Scene create_scene_from_gltf() {
     json j;
     std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     std::ifstream gltf(gltf_path);
-    //std::ifstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
     gltf >> j;
     Scene scn;
 
