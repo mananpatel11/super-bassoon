@@ -19,8 +19,12 @@ using json = nlohmann::json;
 // vertices/faces/normals/texcoords etc.
 class Mesh {
     public:
-    Mesh(int _num_triangles, std::vector<float3> _vertices, std::vector<float3> _colors) : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
-    Mesh(int _num_triangles, std::vector<float3> _vertices) : num_triangles(_num_triangles), vertices(_vertices), colors(std::vector<float3>(_num_triangles*3, float3(1.0, 0.0, 0.0))) {}
+    Mesh(int _num_triangles, std::vector<float3> _vertices, std::vector<float3> _colors)
+        : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
+    Mesh(int _num_triangles, std::vector<float3> _vertices) :
+        num_triangles(_num_triangles),
+        vertices(_vertices), 
+        colors(std::vector<float3>(_num_triangles*3, float3(1.0, 0.0, 0.0))) {}
     std::vector<float3> vertices;
     std::vector<float3> colors;
     int num_triangles;
@@ -431,6 +435,29 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
     }
 }
 
+std::vector<uint16_t> access_uint16_data(const json &j, std::string base_path, int accessor_id) {
+    std::vector<uint16_t> data;
+    auto accessor = j["accessors"][accessor_id];
+    auto buffer_view = j["bufferViews"][int(accessor["bufferView"])];
+    int buffer_index = int(buffer_view["buffer"]);
+    std::string bin_uri = j["buffers"][buffer_index]["uri"];
+    std::string bin_path = base_path + bin_uri;
+    std::ifstream bin_stream(bin_path, std::ios::binary);
+    int count = accessor["count"];
+    int byte_offset = int(buffer_view["byteOffset"]) + int(accessor["byteOffset"]);
+    int stride = (buffer_view["byteStride"] == nullptr) ? 2 : int(buffer_view["byteStride"]);
+    bin_stream.seekg(byte_offset);
+    for (int i = 0; i < count; i++) {
+        uint16_t ui;
+        bin_stream.read(reinterpret_cast<char*>(&ui), sizeof(uint16_t));
+        data.push_back(ui);
+        // Since we extracted 1 uint16, move back 2 bytes 
+        // and move forward by stride
+        bin_stream.seekg(int(bin_stream.tellg()) - 2 + stride);
+    }
+    return data;
+}
+
 std::vector<float3> access_float3_data(const json &j, std::string base_path, int accessor_id) {
     std::vector<float3> data;
     auto accessor = j["accessors"][accessor_id];
@@ -440,7 +467,9 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
     std::string bin_path = base_path + bin_uri;
     std::ifstream bin_stream(bin_path, std::ios::binary);
     int count = accessor["count"];
-    std::cout << count << "\n";
+    int byte_offset = int(buffer_view["byteOffset"]) + int(accessor["byteOffset"]);
+    int stride = (buffer_view["byteStride"] == nullptr) ? 12 : int(buffer_view["byteStride"]);
+    bin_stream.seekg(byte_offset);
     for (int i = 0; i < count; i++) {
         float x;
         float y;
@@ -449,14 +478,71 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
         bin_stream.read(reinterpret_cast<char*>(&y), sizeof(float));
         bin_stream.read(reinterpret_cast<char*>(&z), sizeof(float));
         data.push_back(float3(x, y, z));
+        // Since we extracted 3 floats, move back 12 bytes 
+        // and move forward by stride
+        bin_stream.seekg(int(bin_stream.tellg()) - 12 + stride);
     }
     return data;
 }
 
+std::vector<Model> process_node(const json &j, std::string base_path, int node_id) {
+    std::vector<Model> models;
+    json node = j["nodes"][node_id];
+    // Handle all children
+    if (node["children"] != nullptr) {
+        for (int child_id : node["children"]) {
+            std::vector<Model> child_models = process_node(j, base_path, child_id);
+            models.insert(models.end(), child_models.begin(), child_models.end());
+        }
+    }
+    // If node is a mesh node, create a model
+    if (node["mesh"] != nullptr) {
+        int mesh_id = node["mesh"];
+        auto mesh = j["meshes"][mesh_id];
+        std::cout << "Mesh = " << mesh << "\n";
+        for (auto primitive : mesh["primitives"]) {
+            std::cout << "Primitive = " << primitive << "\n";
+            auto attributes = primitive["attributes"];
+            std::cout << "Attributes = " << attributes << "\n";
+            // Get positions
+            int position_accessor_id = attributes["POSITION"];
+            std::vector<float3> positions_data = access_float3_data(j, 
+                                                base_path, position_accessor_id);
+            
+            // Get indices if present
+            if (primitive["indices"] != nullptr) {
+                std::vector<uint16_t> indices = access_uint16_data(j, 
+                                                base_path, primitive["indices"]);
+                std::vector<float3> positions;
+                for (uint16_t index : indices) {
+                    std::cout << "index = " << index << "\n";
+                    float3 position = positions_data[index];
+                    positions.push_back(position);
+                }
+                Mesh mesh(indices.size()/3, positions);
+                Model model(mesh, identity());
+                models.push_back(model);
+            } else {
+                Mesh mesh(positions_data.size()/3, positions_data);
+                Model model(mesh, identity());
+                models.push_back(model);
+            }
+            // for (auto &p : positions) {
+            //     std::cout << p << "\n";
+            // }
+        }
+    }
+    return models;
+}
+
 Scene create_scene_from_gltf() {
     json j;
-    std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
-    std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
+    // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
+    // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
+    
+    std::string base_path = "glTF-Sample-Models/2.0/Box/glTF/";
+    std::string gltf_path = base_path + "Box.gltf";
+    
     std::ifstream gltf(gltf_path);
     gltf >> j;
     Scene scn;
@@ -470,26 +556,38 @@ Scene create_scene_from_gltf() {
     for (auto scene : scenes) {
         std::cout << "Scene = " << scene << "\n";
         for (int node_id : scene["nodes"]) {
-            auto node = nodes[node_id];
-            std::cout << "Node = " << node << "\n";
-            for (int mesh_id : node["mesh"]) {
-                auto mesh = meshes[mesh_id];
-                std::cout << "Mesh = " << mesh << "\n";
-                for (auto primitive : mesh["primitives"]) {
-                    std::cout << "Primitive = " << primitive << "\n";
-                    auto attributes = primitive["attributes"];
-                    std::cout << "Attributes = " << attributes << "\n";
-                    // Get positions
-                    int position_accessor_id = attributes["POSITION"];
-                    std::vector<float3> positions = access_float3_data(j, base_path, position_accessor_id);
+            std::vector<Model> models = process_node(j, base_path, node_id);
+            scn.models.insert(scn.models.end(), models.begin(), models.end());
+            // auto node = nodes[node_id];
+            // std::cout << "Node = " << node << "\n";
+
+            // for (int mesh_id : node["mesh"]) {
+            //     auto mesh = meshes[mesh_id];
+            //     std::cout << "Mesh = " << mesh << "\n";
+            //     for (auto primitive : mesh["primitives"]) {
+            //         std::cout << "Primitive = " << primitive << "\n";
+            //         auto attributes = primitive["attributes"];
+            //         std::cout << "Attributes = " << attributes << "\n";
+            //         // Get positions
+            //         int position_accessor_id = attributes["POSITION"];
+            //         std::vector<float3> positions = access_float3_data(j, 
+            //                                             base_path, position_accessor_id);
                     
-                    Mesh mesh(3, positions);
-                    Model model(mesh, identity());
-                    scn.models.push_back(model);
-                }
-            }
+            //         Mesh mesh(3, positions);
+            //         Model model(mesh, identity());
+            //         scn.models.push_back(model);
+            //         for (auto &p : positions) {
+            //             std::cout << p << "\n";
+            //         }
+            //     }
+            // }
         }
     }
+    //exit(0);
+    for (auto &v: scn.models[0].mesh.vertices) {
+        std::cout << v << "\n";
+    }
+    // exit(0);
     return scn;
 }
 
