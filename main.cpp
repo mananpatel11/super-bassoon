@@ -278,6 +278,7 @@ struct Camera {
 
 class Scene {
     public:
+    Scene() : models(std::vector<Model>()), projection_matrix(identity()), view_matrix(identity()) {}
     Scene(std::vector<Model> _models) : models(_models), projection_matrix(identity()), view_matrix(identity()){};
     std::vector<Model> models;
     float4x4 projection_matrix;
@@ -468,11 +469,53 @@ void test_json() {
     std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
     std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
     gltf >> j;
-    std::cout << j << "\n";
+    auto accessors = j["accessors"];
+    std::cout << accessors.is_array() << "\n";
+    std::cout << j["accessors"] << "\n";
+}
+
+void create_scene_from_gltf() {
+    json j;
+    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
+    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
+    gltf >> j;
+    Scene scn;
+
+    auto scenes = j["scenes"];
+    auto nodes = j["nodes"];
+    auto meshes = j["meshes"];
+    auto buffers = j["buffers"];
+    auto bufferViews = j["bufferViews"];
+    auto accessors = j["accessors"];
+    for (auto scene : scenes) {
+        std::cout << "Scene = " << scene << "\n";
+        for (int node_id : scene["nodes"]) {
+            auto node = nodes[node_id];
+            std::cout << "Node = " << node << "\n";
+            for (int mesh_id : node["mesh"]) {
+                auto mesh = meshes[mesh_id];
+                std::cout << "Mesh = " << mesh << "\n";
+                for (auto primitive : mesh["primitives"]) {
+                    std::cout << "Primitive = " << primitive << "\n";
+                    auto attributes = primitive["attributes"];
+                    std::cout << "Attributes = " << attributes << "\n";
+                    int position_accessor_id = attributes["POSITION"];
+                    auto accessor = accessors[position_accessor_id];
+                    std::cout << accessor << "\n";
+                    /*
+                    Use accessor/bufferview and buffer information to read buffer
+                    into array of floats
+                    */
+                   
+
+                }
+            }
+        }
+    }
 }
 
 int main() {
-    test_json();
+    create_scene_from_gltf();
     //game_loop();
     //test_triangle();
     //test_quad();
