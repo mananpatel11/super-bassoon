@@ -430,6 +430,86 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
     }
 }
 
+
+void test_json() {
+    json j;
+    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
+    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
+    gltf >> j;
+    auto accessors = j["accessors"];
+    std::cout << accessors.is_array() << "\n";
+    std::cout << j["accessors"] << "\n";
+}
+
+Scene create_scene_from_gltf() {
+    json j;
+    std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
+    std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
+    std::ifstream gltf(gltf_path);
+    //std::ifstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
+    gltf >> j;
+    Scene scn;
+
+    auto scenes = j["scenes"];
+    auto nodes = j["nodes"];
+    auto meshes = j["meshes"];
+    auto buffers = j["buffers"];
+    auto bufferViews = j["bufferViews"];
+    auto accessors = j["accessors"];
+    for (auto scene : scenes) {
+        std::cout << "Scene = " << scene << "\n";
+        for (int node_id : scene["nodes"]) {
+            auto node = nodes[node_id];
+            std::cout << "Node = " << node << "\n";
+            for (int mesh_id : node["mesh"]) {
+                auto mesh = meshes[mesh_id];
+                std::cout << "Mesh = " << mesh << "\n";
+                for (auto primitive : mesh["primitives"]) {
+                    std::cout << "Primitive = " << primitive << "\n";
+                    auto attributes = primitive["attributes"];
+                    std::cout << "Attributes = " << attributes << "\n";
+                    int position_accessor_id = attributes["POSITION"];
+                    auto accessor = accessors[position_accessor_id];
+                    std::cout << accessor << "\n";
+                    int buffer_view_id = accessor["bufferView"];
+                    auto buffer_view = bufferViews[buffer_view_id];
+                    int buffer_index = buffer_view["buffer"];
+                    auto buffer = buffers[buffer_index];
+                    std::string buffer_uri = buffer["uri"];
+                    int buffer_byte_length = buffer["byteLength"];
+
+                    std::cout << "buffer_uri = " << buffer_uri << "\n";
+                    std::cout << "buffer_byte_length = " << buffer_byte_length << "\n";
+                    std::string buffer_path = base_path + buffer_uri;
+                    std::ifstream bin_file(buffer_path, std::ios::binary);
+                    std::vector<float3> positions;
+                    std::vector<float3> colors;
+
+                    for (int i = 0; i < 3; i++) {
+                        float x;
+                        float y;
+                        float z;
+                        bin_file.read(reinterpret_cast<char*>(&x), sizeof(float));
+                        bin_file.read(reinterpret_cast<char*>(&y), sizeof(float));
+                        bin_file.read(reinterpret_cast<char*>(&z), sizeof(float));
+
+                        positions.push_back(float3(x, y, z));
+                        colors.push_back(float3(1.0, 0.0, 0.0));
+                    }
+                    for (auto position : positions) {
+                        std::cout << position << "\n";
+                    }
+
+                    Mesh mesh(3, positions, colors);
+                    Model model(mesh, identity());
+                    scn.models.push_back(model);
+                }
+            }
+        }
+    }
+    return scn;
+}
+
 void game_loop() {
     int width = 256;
     int height = 256;
@@ -437,8 +517,8 @@ void game_loop() {
     // Create Scene
     Camera cam;
     // Scene scn = Scene::CreateTriangleScene();
-    Scene scn = Scene::CreateCubeScene();
- 
+    //Scene scn = Scene::CreateCubeScene();
+    Scene scn = create_scene_from_gltf();
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 
@@ -464,59 +544,9 @@ void game_loop() {
     w.destroy();
 }
 
-void test_json() {
-    json j;
-    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
-    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
-    gltf >> j;
-    auto accessors = j["accessors"];
-    std::cout << accessors.is_array() << "\n";
-    std::cout << j["accessors"] << "\n";
-}
-
-void create_scene_from_gltf() {
-    json j;
-    std::fstream gltf("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf");
-    std::fstream bin("glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/triangleWithoutIndices.bin");
-    gltf >> j;
-    Scene scn;
-
-    auto scenes = j["scenes"];
-    auto nodes = j["nodes"];
-    auto meshes = j["meshes"];
-    auto buffers = j["buffers"];
-    auto bufferViews = j["bufferViews"];
-    auto accessors = j["accessors"];
-    for (auto scene : scenes) {
-        std::cout << "Scene = " << scene << "\n";
-        for (int node_id : scene["nodes"]) {
-            auto node = nodes[node_id];
-            std::cout << "Node = " << node << "\n";
-            for (int mesh_id : node["mesh"]) {
-                auto mesh = meshes[mesh_id];
-                std::cout << "Mesh = " << mesh << "\n";
-                for (auto primitive : mesh["primitives"]) {
-                    std::cout << "Primitive = " << primitive << "\n";
-                    auto attributes = primitive["attributes"];
-                    std::cout << "Attributes = " << attributes << "\n";
-                    int position_accessor_id = attributes["POSITION"];
-                    auto accessor = accessors[position_accessor_id];
-                    std::cout << accessor << "\n";
-                    /*
-                    Use accessor/bufferview and buffer information to read buffer
-                    into array of floats
-                    */
-                   
-
-                }
-            }
-        }
-    }
-}
-
 int main() {
-    create_scene_from_gltf();
-    //game_loop();
+    //create_scene_from_gltf();
+    game_loop();
     //test_triangle();
     //test_quad();
     //test_cube();
