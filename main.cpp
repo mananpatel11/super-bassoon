@@ -23,8 +23,22 @@ class Mesh {
         : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
     Mesh(int _num_triangles, std::vector<float3> _vertices) :
         num_triangles(_num_triangles),
-        vertices(_vertices), 
-        colors(std::vector<float3>(_num_triangles*3, float3(1.0, 0.0, 0.0))) {}
+        vertices(_vertices) {
+            colors = std::vector<float3>();
+            std::random_device rd;  //Will be used to obtain a seed for the random number engine
+            std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+            std::uniform_int_distribution<> distrib(0,5);
+            float3 c0(1.0, 0.0, 0.0);
+            float3 c1(0.0, 1.0, 0.0);
+            float3 c2(0.0, 0.0, 1.0);
+            float3 c3(1.0, 1.0, 0.0);
+            float3 c4(0.0, 1.0, 1.0);
+            float3 c5(1.0, 0.0, 1.0);
+            float3 color_options[6] = {c0, c1, c2, c3, c4, c5};
+            for (int i = 0; i < _num_triangles*3; i++) {
+                colors.push_back(color_options[distrib(gen)]);
+            }
+        }
     std::vector<float3> vertices;
     std::vector<float3> colors;
     int num_triangles;
@@ -288,7 +302,6 @@ class Scene {
     std::vector<Model> models;
     float4x4 projection_matrix;
     float4x4 view_matrix;
-
     void update(const Camera &c);
 
     // Constructors
@@ -296,6 +309,7 @@ class Scene {
     static Scene CreateTriangleScene();
     static Scene CreateQuadScene();
     static Scene CreateCubeScene();
+
 };
 
 void Scene::update(const Camera &c) {
@@ -361,66 +375,7 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     // std::cout << "Rendering ended\n";
 }
 
-int test_triangle() {
-    int width = 256;
-    int height = 256;
 
-    // Create Scene
-    Scene scn = Scene::CreateTriangleScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("triangle.ppm");
-    return 0;
-}
-
-int test_quad() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateQuadScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("quad.ppm");
-    return 0;
-}
-
-int test_cube() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateCubeScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("cube.ppm");
-    return 0;
-}
-
-void test_matrix4x4() {
-    float4x4 A = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
-    float4x4 B = float4x4(float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4), float4(1, 2, 3, 4));
-    float4x4 C = A*B;
-    std::cout << C;
-}
 
 void update_surface(unsigned char *surface, FrameBuffer &fb) {
     for (int x = 0; x < fb.width; x++) {
@@ -468,19 +423,15 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
     std::ifstream bin_stream(bin_path, std::ios::binary);
     int count = accessor["count"];
     int byte_offset = int(buffer_view["byteOffset"]) + int(accessor["byteOffset"]);
-    int stride = (buffer_view["byteStride"] == nullptr) ? 12 : int(buffer_view["byteStride"]);
+    int stride = (buffer_view["byteStride"] == nullptr) ? sizeof(float3) : int(buffer_view["byteStride"]);
     bin_stream.seekg(byte_offset);
     for (int i = 0; i < count; i++) {
-        float x;
-        float y;
-        float z;
-        bin_stream.read(reinterpret_cast<char*>(&x), sizeof(float));
-        bin_stream.read(reinterpret_cast<char*>(&y), sizeof(float));
-        bin_stream.read(reinterpret_cast<char*>(&z), sizeof(float));
-        data.push_back(float3(x, y, z));
+        float3 f3;
+        bin_stream.read(reinterpret_cast<char*>(&f3), sizeof(float3));
+        data.push_back(f3);
         // Since we extracted 3 floats, move back 12 bytes 
         // and move forward by stride
-        bin_stream.seekg(int(bin_stream.tellg()) - 12 + stride);
+        bin_stream.seekg(int(bin_stream.tellg()) - sizeof(float3) + stride);
     }
     return data;
 }
@@ -549,43 +500,12 @@ Scene create_scene_from_gltf() {
 
     auto scenes = j["scenes"];
     auto nodes = j["nodes"];
-    auto meshes = j["meshes"];
-    auto buffers = j["buffers"];
-    auto bufferViews = j["bufferViews"];
-    auto accessors = j["accessors"];
     for (auto scene : scenes) {
         std::cout << "Scene = " << scene << "\n";
         for (int node_id : scene["nodes"]) {
             std::vector<Model> models = process_node(j, base_path, node_id);
             scn.models.insert(scn.models.end(), models.begin(), models.end());
-            // auto node = nodes[node_id];
-            // std::cout << "Node = " << node << "\n";
-
-            // for (int mesh_id : node["mesh"]) {
-            //     auto mesh = meshes[mesh_id];
-            //     std::cout << "Mesh = " << mesh << "\n";
-            //     for (auto primitive : mesh["primitives"]) {
-            //         std::cout << "Primitive = " << primitive << "\n";
-            //         auto attributes = primitive["attributes"];
-            //         std::cout << "Attributes = " << attributes << "\n";
-            //         // Get positions
-            //         int position_accessor_id = attributes["POSITION"];
-            //         std::vector<float3> positions = access_float3_data(j, 
-            //                                             base_path, position_accessor_id);
-                    
-            //         Mesh mesh(3, positions);
-            //         Model model(mesh, identity());
-            //         scn.models.push_back(model);
-            //         for (auto &p : positions) {
-            //             std::cout << p << "\n";
-            //         }
-            //     }
-            // }
         }
-    }
-    //exit(0);
-    for (auto &v: scn.models[0].mesh.vertices) {
-        std::cout << v << "\n";
     }
     // exit(0);
     return scn;
@@ -597,7 +517,7 @@ void game_loop() {
 
     // Create Scene
     Camera cam;
-    // Scene scn = Scene::CreateTriangleScene();
+    //Scene scn = Scene::CreateTriangleScene();
     //Scene scn = Scene::CreateCubeScene();
     Scene scn = create_scene_from_gltf();
     // Create FrameBuffer
@@ -623,6 +543,60 @@ void game_loop() {
     }
     
     w.destroy();
+}
+
+int test_triangle() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateTriangleScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("triangle.ppm");
+    return 0;
+}
+
+int test_quad() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateQuadScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("quad.ppm");
+    return 0;
+}
+
+int test_cube() {
+    int width = 256;
+    int height = 256;
+
+    // Create Scene
+    Scene scn = Scene::CreateCubeScene();
+
+    // Create FrameBuffer
+    FrameBuffer fb = FrameBuffer(width, height);
+
+    // Draw Scene into FrameBuffer
+    Renderer::Render(fb, scn);
+
+    // Dump FrameBuffer into an image file
+    fb.DumpAsPPMFile("cube.ppm");
+    return 0;
 }
 
 int main() {
