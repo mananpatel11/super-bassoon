@@ -6,6 +6,9 @@
 			"label": "build basoon",
 			"command": "/usr/bin/clang++",
 			"args": [
+				"-g",
+				"-target",
+				"x86_64-apple-darwin",
 				"-std=c++17",
 				"-framework",
 				"Cocoa",

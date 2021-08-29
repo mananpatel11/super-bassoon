@@ -6,14 +6,32 @@
 #include <math.h>
 #include <random>
 
-#include "data_types.h"
-#include "framebuffer.h"
-#include "window.h"
-
+// External dependencies
 #include "json.hpp"
 #include "lodepng.h"
 
+// local dependencies
+#include "data_types.h"
+#include "framebuffer.h"
+#include "material.h"
+#include "window.h"
+
 using json = nlohmann::json;
+
+/*
+    GL_BYTE (5120)
+    GL_DOUBLE (5130)
+    GL_FALSE (0)
+    GL_FLOAT (5126)
+    GL_HALF_NV (5121)
+    GL_INT (5124)
+    GL_SHORT (5122)
+    GL_TRUE (1)
+    GL_UNSIGNED_BYTE (5121)
+    GL_UNSIGNED_INT (5125)
+    GL_UNSIGNED_INT64_AMD (35778)
+    GL_UNSIGNED_SHORT (5123)
+*/
 
 // Mesh represents the geometry of the object in terms of
 // vertices/faces/normals/texcoords etc.
@@ -196,10 +214,6 @@ Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, 
     vout.position.y = position.y;
     vout.position.z = position.z;
     vout.position.w = 1;
-    // std::cout << "Input position" << vout.position << "\n";
-    // std::cout << projection_matrix << "\n";
-    // std::cout << view_transform << "\n";
-    // std::cout << model_transform << "\n";
     vout.position = projection_matrix*view_transform*model_transform*vout.position;
     vout.position = vout.position/vout.position.w;
     std::cout << "Output position" << vout.position << "\n";
@@ -256,9 +270,7 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
                 float e01 = edge_function(p, vertex_outs[0].position, vertex_outs[1].position);
                 float e12 = edge_function(p, vertex_outs[1].position, vertex_outs[2].position);
                 float e20 = edge_function(p, vertex_outs[2].position, vertex_outs[0].position);
-                //std::cout << "e01 = " << e01 << "\n";
-                //std::cout << "e12 = " << e12 << "\n";
-                //std::cout << "e20 = " << e20 << "\n";
+
                 // If pixel is covered
                 if ((e01 >= 0) && (e12 >= 0) && (e20 >= 0)) {
                     //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
@@ -399,7 +411,11 @@ std::vector<uint16_t> access_uint16_data(const json &j, std::string base_path, i
     std::string bin_path = base_path + bin_uri;
     std::ifstream bin_stream(bin_path, std::ios::binary);
     int count = accessor["count"];
-    int byte_offset = int(buffer_view["byteOffset"]) + int(accessor["byteOffset"]);
+    int buffer_view_byte_offset = (buffer_view["byteOffset"] == nullptr)
+                                ? 0 : buffer_view["byteOffset"].get<int>();
+    int accessor_byte_offset = (accessor["byteOffset"] == nullptr)
+                                ? 0 : accessor["byteOffset"].get<int>();
+    int byte_offset = buffer_view_byte_offset + accessor_byte_offset;
     int stride = (buffer_view["byteStride"] == nullptr) ? 2 : int(buffer_view["byteStride"]);
     bin_stream.seekg(byte_offset);
     for (int i = 0; i < count; i++) {
@@ -422,8 +438,13 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
     std::string bin_path = base_path + bin_uri;
     std::ifstream bin_stream(bin_path, std::ios::binary);
     int count = accessor["count"];
-    int byte_offset = int(buffer_view["byteOffset"]) + int(accessor["byteOffset"]);
-    int stride = (buffer_view["byteStride"] == nullptr) ? sizeof(float3) : int(buffer_view["byteStride"]);
+    int buffer_view_byte_offset = (buffer_view["byteOffset"] == nullptr)
+                                ? 0 : buffer_view["byteOffset"].get<int>();
+    int accessor_byte_offset = (accessor["byteOffset"] == nullptr)
+                                ? 0 : accessor["byteOffset"].get<int>();
+    int byte_offset = buffer_view_byte_offset + accessor_byte_offset;
+    int stride = (buffer_view["byteStride"] == nullptr) 
+                                ? sizeof(float3) : int(buffer_view["byteStride"]);
     bin_stream.seekg(byte_offset);
     for (int i = 0; i < count; i++) {
         float3 f3;
@@ -460,8 +481,11 @@ std::vector<Model> process_node(const json &j, std::string base_path, int node_i
             std::vector<float3> positions_data = access_float3_data(j, 
                                                 base_path, position_accessor_id);
             
+
+            std::cout << "Got positions data\n";
             // Get indices if present
             if (primitive["indices"] != nullptr) {
+                std::cout << "Indices are present\n";
                 std::vector<uint16_t> indices = access_uint16_data(j, 
                                                 base_path, primitive["indices"]);
                 std::vector<float3> positions;
@@ -474,6 +498,7 @@ std::vector<Model> process_node(const json &j, std::string base_path, int node_i
                 Model model(mesh, identity());
                 models.push_back(model);
             } else {
+                std::cout << "No indices are present\n";
                 Mesh mesh(positions_data.size()/3, positions_data);
                 Model model(mesh, identity());
                 models.push_back(model);
@@ -491,8 +516,11 @@ Scene create_scene_from_gltf() {
     // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     
-    std::string base_path = "glTF-Sample-Models/2.0/Box/glTF/";
-    std::string gltf_path = base_path + "Box.gltf";
+    // std::string base_path = "glTF-Sample-Models/2.0/Box/glTF/";
+    // std::string gltf_path = base_path + "Box.gltf";
+    
+    std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
+    std::string gltf_path = base_path + "WaterBottle.gltf";
     
     std::ifstream gltf(gltf_path);
     gltf >> j;
