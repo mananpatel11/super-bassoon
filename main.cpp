@@ -199,6 +199,7 @@ class Model {
     Model(Mesh _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
     Mesh mesh;
     float4x4 transform;
+    Material material;
     void draw(FrameBuffer &fb, float4x4 &view_transform);
 };
 
@@ -457,13 +458,16 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
     return data;
 }
 
-std::vector<Model> process_node(const json &j, std::string base_path, int node_id) {
+std::vector<Model> process_node(const json &j,
+                                std::string base_path,
+                                int node_id,
+                                std::vector<Material> materials) {
     std::vector<Model> models;
     json node = j["nodes"][node_id];
     // Handle all children
     if (node["children"] != nullptr) {
         for (int child_id : node["children"]) {
-            std::vector<Model> child_models = process_node(j, base_path, child_id);
+            std::vector<Model> child_models = process_node(j, base_path, child_id, materials);
             models.insert(models.end(), child_models.begin(), child_models.end());
         }
     }
@@ -480,8 +484,6 @@ std::vector<Model> process_node(const json &j, std::string base_path, int node_i
             int position_accessor_id = attributes["POSITION"];
             std::vector<float3> positions_data = access_float3_data(j, 
                                                 base_path, position_accessor_id);
-            
-
             std::cout << "Got positions data\n";
             // Get indices if present
             if (primitive["indices"] != nullptr) {
@@ -503,10 +505,23 @@ std::vector<Model> process_node(const json &j, std::string base_path, int node_i
                 Model model(mesh, identity());
                 models.push_back(model);
             }
+            // TODO: Get normals
+            // TODO: Get TEXCOORD_0
+            
+            // Get material
+            if (primitive["material"] != nullptr) {
+                int material_id = primitive["material"].get<int>();
+                // TODO: 
+            }
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
             // }
         }
+    } else if (node["camera"] != nullptr) {
+        std::cout << "Not handling camera ATM\n";
+        exit(-1);
+    } else if (node["skin"] != nullptr) {
+        std::cout << "Not handling skin ATM\n";
     }
     return models;
 }
@@ -516,22 +531,25 @@ Scene create_scene_from_gltf() {
     // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     
-    // std::string base_path = "glTF-Sample-Models/2.0/Box/glTF/";
-    // std::string gltf_path = base_path + "Box.gltf";
+    std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
+    std::string gltf_path = base_path + "BoxTextured.gltf";
     
-    std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
-    std::string gltf_path = base_path + "WaterBottle.gltf";
+    // std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
+    // std::string gltf_path = base_path + "WaterBottle.gltf";
     
     std::ifstream gltf(gltf_path);
     gltf >> j;
     Scene scn;
+
+    // Pre-Create all materials
+    std::vector<Material> materials = CreateMaterials(j);
 
     auto scenes = j["scenes"];
     auto nodes = j["nodes"];
     for (auto scene : scenes) {
         std::cout << "Scene = " << scene << "\n";
         for (int node_id : scene["nodes"]) {
-            std::vector<Model> models = process_node(j, base_path, node_id);
+            std::vector<Model> models = process_node(j, base_path, node_id, materials);
             scn.models.insert(scn.models.end(), models.begin(), models.end());
         }
     }
