@@ -3,8 +3,9 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <math.h>
 #include <random>
+#include <chrono>
+#include <math.h>
 
 // External dependencies
 #include "json.hpp"
@@ -593,6 +594,10 @@ void game_loop() {
 
     Window w(width, height);
     w.create();
+
+    auto start_time = std::chrono::system_clock::now();
+    auto curr_time = std::chrono::system_clock::now();
+    int num_frames = 0;
     while (!w.should_close) {
         // Get keyboard events
         EventRecord e = w.process_events();
@@ -608,7 +613,17 @@ void game_loop() {
         w.present();
         // Reset the record to process new keyboard events
         w.reset_record();
+        num_frames++;
+        curr_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = curr_time - start_time;
+        if (elapsed_seconds.count() >= 1) {
+            double fps = num_frames/elapsed_seconds.count();
+            std::cout << "FPS = " << fps << "\n";
+            num_frames = 0;
+            start_time = std::chrono::system_clock::now();
+        }
     }
+    
     
     w.destroy();
 }
