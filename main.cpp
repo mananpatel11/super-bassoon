@@ -61,6 +61,7 @@ class Mesh {
                 colors.push_back(color_options[distrib(gen)]);
             }
         }
+    std::vector<uint16_t> indices;
     std::vector<float3> vertices;
     std::vector<float3> normals;
     std::vector<float3> colors;
@@ -213,10 +214,16 @@ class Model {
 struct Varyings {
     float4 position;
     float3 color;
+    float2 texture_coord;
     Varyings() = default;
 };
 
-Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, float4x4 view_transform, float4x4 projection_matrix) {
+Varyings vertex_shader(float3 position,
+                       float3 color,
+                       float2 texture_coord,
+                       float4x4 model_transform,
+                       float4x4 view_transform,
+                       float4x4 projection_matrix) {
     Varyings vout;
     vout.position.x = position.x;
     vout.position.y = position.y;
@@ -224,14 +231,34 @@ Varyings vertex_shader(float3 position, float3 color, float4x4 model_transform, 
     vout.position.w = 1;
     vout.position = projection_matrix*view_transform*model_transform*vout.position;
     vout.position = vout.position/vout.position.w;
-    std::cout << "Output position" << vout.position << "\n";
-    vout.color = color; 
+    vout.color = color;
+    vout.texture_coord = texture_coord;
+    // std::cout << position << "\t" << texture_coord << "\n";
     return vout;
 }
 
+float4 sample(std::shared_ptr<Texture> texture, float2 coord) {
+    // float x = coord.x - floorf(coord.x);
+    // float y = coord.y = floorf(coord.y);
+    float x = coord.x;
+    float y = coord.y;
+    int pix_x = x * texture->width;
+    int pix_y = y * texture->height;
+    
+    unsigned char r = texture->bytes[pix_y*texture->width*4 + pix_x*4+0];
+    unsigned char g = texture->bytes[pix_y*texture->width*4 + pix_x*4+1];
+    unsigned char b = texture->bytes[pix_y*texture->width*4 + pix_x*4+2];
+    unsigned char a = texture->bytes[pix_y*texture->width*4 + pix_x*4+3];
+
+    return float4(float(r)/256, float(g)/256, float(b)/256, float(a)/256);
+}
+
 // The position fragment shader receives is interpolated
-float3 fragment_shader(Varyings frag_in) {
-    return frag_in.color;
+float3 fragment_shader(Varyings frag_in, std::shared_ptr<Texture> texture) {
+    float2 coord = frag_in.texture_coord;
+    float4 c = sample(texture, coord);
+    return float3(c.x, c.y, c.z);
+    // return frag_in.color;
 }
 
 float edge_function(float4 a, float4 b, float4 c) {
@@ -250,10 +277,16 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
-            float3 pos_in = mesh->vertices[i*3 + vid];
-            float3 color_in = mesh->colors[i*3 + vid];
-            std::cout << projection_matrix << "\n";
-            Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
+            int index = -1;
+            if (mesh->indices.size() == 0) {
+                index = i*3 + vid;
+            } else {
+                index = mesh->indices[i*3 + vid];
+            }
+            float3 pos_in = mesh->vertices[index];
+            float3 color_in = mesh->colors[index];
+            float2 texture_coord = mesh->texcoords[index];
+            Varyings vertex_out = vertex_shader(pos_in, color_in, texture_coord, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
         }
         //exit(0);
@@ -292,9 +325,9 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
                     Varyings varyings;
                     varyings.position = w0*vertex_outs[0].position + w1*vertex_outs[1].position + w2*vertex_outs[2].position;
                     varyings.color = w0*vertex_outs[0].color + w1*vertex_outs[1].color + w2*vertex_outs[2].color;
-                    
+                    varyings.texture_coord = w0*vertex_outs[0].texture_coord + w1*vertex_outs[1].texture_coord + w2*vertex_outs[2].texture_coord;
                     // Run fragment shader
-                    float3 color = fragment_shader(varyings);
+                    float3 color = fragment_shader(varyings, material->base_color_texture);
                     fb.writeColor(pixel, color);
                 }
             }
@@ -311,7 +344,6 @@ struct Camera {
     void update(const EventRecord& record) {
         yaw += record.right - record.left;
         pitch += record.up - record.down;
-        std::cout << "hori_angle = " << yaw << "\n"; 
     }
 };
 
@@ -393,6 +425,7 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     for (int i = 0; i < scn.models.size(); i++) {
         std::shared_ptr<Model> m = scn.models[i];
         m->draw(fb, scn.view_matrix);
+        // exit(0);
     }
     // std::cout << "Rendering ended\n";
 }
@@ -468,30 +501,25 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
             std::vector<float3> positions_data = access_data<float3>(j, 
                                                 base_path, position_accessor_id);
             std::cout << "Got positions data\n";
-            // Get indices if present
+            mesh = std::make_shared<Mesh>(positions_data.size()/3, positions_data);
+
+            // Get indices
             if (primitive["indices"] != nullptr) {
                 std::cout << "Indices are present\n";
                 std::vector<uint16_t> indices = access_data<uint16_t>(j, 
                                                 base_path, primitive["indices"]);
-                std::vector<float3> positions;
-                for (uint16_t index : indices) {
-                    std::cout << "index = " << index << "\n";
-                    float3 position = positions_data[index];
-                    positions.push_back(position);
-                }
-                mesh = std::make_shared<Mesh>(indices.size()/3, positions);
-
-            } else {
-                std::cout << "No indices are present\n";
-                mesh = std::make_shared<Mesh>(positions_data.size()/3, positions_data);
+                mesh->indices = indices;
+                // FIXME: Hacking correct num_triangles here
+                mesh->num_triangles = mesh->indices.size()/3;
             }
-                    
+
+            // Get normals       
             if (attributes["NORMAL"] != nullptr) {
                 int normal_id = attributes["NORMAL"];
                 auto normals_data = access_data<float3>(j, base_path, normal_id);
                 mesh->normals = normals_data;
             }
-            // TODO: Get TEXCOORD_0
+            // Get TEXCOORD_0
             if (attributes["TEXCOORD_0"] != nullptr) {
                 int texcoord_id = attributes["TEXCOORD_0"];
                 auto texture_coord_data = access_data<float2>(j, base_path, texcoord_id);
@@ -552,8 +580,8 @@ Scene create_scene_from_gltf() {
 }
 
 void game_loop() {
-    int width = 256;
-    int height = 256;
+    int width = 250;
+    int height = 250;
 
     // Create Scene
     Camera cam;
