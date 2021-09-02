@@ -60,13 +60,13 @@ class Mesh {
     std::vector<float3> vertices;
     std::vector<float3> colors;
     int num_triangles;
-    static Mesh createTriangleMesh();
-    static Mesh createQuadMesh();
-    static Mesh createCubeMesh();
-    static Mesh createOrthographicsCubeMesh();
+    static std::shared_ptr<Mesh> createTriangleMesh();
+    static std::shared_ptr<Mesh> createQuadMesh();
+    static std::shared_ptr<Mesh> createCubeMesh();
+    static std::shared_ptr<Mesh> createOrthographicsCubeMesh();
 };
 
-Mesh Mesh::createTriangleMesh() {
+std::shared_ptr<Mesh> Mesh::createTriangleMesh() {
     int num_triangles = 1;
     std::vector<float3> vertices;
     float3 v0(-1.0, -1.0, 0.0);
@@ -83,10 +83,10 @@ Mesh Mesh::createTriangleMesh() {
     colors.push_back(c0);
     colors.push_back(c1);
     colors.push_back(c2);
-    return Mesh(1, vertices, colors);
+    return std::make_shared<Mesh>(1, vertices, colors);
 }
 
-Mesh Mesh::createQuadMesh() {
+std::shared_ptr<Mesh> Mesh::createQuadMesh() {
     int num_triangles = 2;
     std::vector<float3> vertices;
     float3 v0(-0.8, -0.8, 0.0);
@@ -111,10 +111,10 @@ Mesh Mesh::createQuadMesh() {
     colors.push_back(c2);
     colors.push_back(c1);
     colors.push_back(c3);
-    return Mesh(num_triangles, vertices, colors);
+    return std::make_shared<Mesh>(num_triangles, vertices, colors);
 }
 
-Mesh Mesh::createCubeMesh() {
+std::shared_ptr<Mesh> Mesh::createCubeMesh() {
     std::vector<float3> vertices;
 
     float3 v00(-0.8, 0.8, -0.8);
@@ -191,15 +191,16 @@ Mesh Mesh::createCubeMesh() {
     for (int i = 0; i < num_triangles*3; i++) {
         colors.push_back(color_options[distrib(gen)]);
     } 
-    return Mesh(num_triangles, vertices, colors);
+    return std::make_shared<Mesh>(num_triangles, vertices, colors);
 }
 
 class Model {
     public:
-    Model(Mesh _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
-    Mesh mesh;
+    Model() : mesh(nullptr), material(nullptr), transform(identity()) {}
+    Model(std::shared_ptr<Mesh> _m, float4x4 _transform = identity()) : mesh(_m), transform(_transform) {}
+    std::shared_ptr<Mesh> mesh;
     float4x4 transform;
-    Material material;
+    std::shared_ptr<Material> material;
     void draw(FrameBuffer &fb, float4x4 &view_transform);
 };
 
@@ -239,12 +240,12 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
     // float4x4 projection_matrix = perspective_matrix;
     float4x4 projection_matrix = ortho_matrix;
-    for (int i = 0; i < mesh.num_triangles; i++) {
+    for (int i = 0; i < mesh->num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
-            float3 pos_in = mesh.vertices[i*3 + vid];
-            float3 color_in = mesh.colors[i*3 + vid];
+            float3 pos_in = mesh->vertices[i*3 + vid];
+            float3 color_in = mesh->colors[i*3 + vid];
             std::cout << projection_matrix << "\n";
             Varyings vertex_out = vertex_shader(pos_in, color_in, transform, view_transform, projection_matrix);
             vertex_outs.push_back(vertex_out);
@@ -310,9 +311,13 @@ struct Camera {
 
 class Scene {
     public:
-    Scene() : models(std::vector<Model>()), projection_matrix(identity()), view_matrix(identity()) {}
-    Scene(std::vector<Model> _models) : models(_models), projection_matrix(identity()), view_matrix(identity()){};
-    std::vector<Model> models;
+    Scene() : models(std::vector<std::shared_ptr<Model>>()),
+              projection_matrix(identity()),
+              view_matrix(identity()) {}
+    Scene(std::vector<std::shared_ptr<Model>> _models) : models(_models),
+                                                         projection_matrix(identity()),
+                                                         view_matrix(identity()){};
+    std::vector<std::shared_ptr<Model>> models;
     float4x4 projection_matrix;
     float4x4 view_matrix;
     void update(const Camera &c);
@@ -333,12 +338,11 @@ void Scene::update(const Camera &c) {
 }
 
 Scene Scene::CreateTriangleScene() {
-    Mesh mesh = Mesh::createTriangleMesh();
+    Scene s;
+    std::shared_ptr<Mesh> mesh = Mesh::createTriangleMesh();
     float4x4 model_matrix = scalingMatrix(1.0, 1.0, 1.0);
-    Model model = Model(mesh, model_matrix);
-    std::vector<Model> models;
-    models.push_back(model);
-    Scene s(models);
+    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
+    s.models.push_back(model);
     float3 eye(0, 0, -1);
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
@@ -347,11 +351,11 @@ Scene Scene::CreateTriangleScene() {
 }
 
 Scene Scene::CreateQuadScene() {
-    Mesh mesh = Mesh::createQuadMesh();
-    Model model = Model(mesh, identity());
-    std::vector<Model> models;
-    models.push_back(model);
-    Scene s(models);
+    Scene s;
+    std::shared_ptr<Mesh> mesh = Mesh::createQuadMesh();
+    float4x4 model_matrix = scalingMatrix(1.0, 1.0, 1.0);
+    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
+    s.models.push_back(model);
     float3 eye(0, 0, -1);
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
@@ -360,13 +364,12 @@ Scene Scene::CreateQuadScene() {
 }
 
 Scene Scene::CreateCubeScene() {
+    Scene s;
     std::vector<Model> models;
-    Mesh mesh = Mesh::createCubeMesh();
-    //float4x4 model_matrix = identity();
+    std::shared_ptr<Mesh> mesh = Mesh::createCubeMesh();
     float4x4 model_matrix = scalingMatrix(0.5, 0.5, 0.5);
-    Model mode = Model(mesh, model_matrix);
-    models.push_back(mode);
-    Scene s(models);
+    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
+    s.models.push_back(model);
     float3 eye(2, 0, -1);
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
@@ -382,8 +385,8 @@ class Renderer {
 void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     // std::cout << "Rendering started\n";
     for (int i = 0; i < scn.models.size(); i++) {
-        Model &m = scn.models[i];
-        m.draw(fb, scn.view_matrix);
+        std::shared_ptr<Model> m = scn.models[i];
+        m->draw(fb, scn.view_matrix);
     }
     // std::cout << "Rendering ended\n";
 }
@@ -428,25 +431,29 @@ std::vector<T> access_data(const json &j, std::string base_path, int accessor_id
     return data;
 }
 
-std::vector<Model> process_node(const json &j,
+std::vector<std::shared_ptr<Model>> process_node(const json &j,
                                 std::string base_path,
                                 int node_id,
-                                std::vector<Material> materials) {
-    std::vector<Model> models;
+                                std::vector<std::shared_ptr<Material>> materials) {
+    std::vector<std::shared_ptr<Model>> models;
     json node = j["nodes"][node_id];
     // Handle all children
     if (node["children"] != nullptr) {
         for (int child_id : node["children"]) {
-            std::vector<Model> child_models = process_node(j, base_path, child_id, materials);
+            std::vector<std::shared_ptr<Model>> child_models = process_node(j, base_path, child_id, materials);
             models.insert(models.end(), child_models.begin(), child_models.end());
         }
     }
+    
+    std::shared_ptr<Model> model(nullptr);
+    std::shared_ptr<Mesh> mesh(nullptr);
+
     // If node is a mesh node, create a model
     if (node["mesh"] != nullptr) {
         int mesh_id = node["mesh"];
-        auto mesh = j["meshes"][mesh_id];
+        auto mesh_j = j["meshes"][mesh_id];
         std::cout << "Mesh = " << mesh << "\n";
-        for (auto primitive : mesh["primitives"]) {
+        for (auto primitive : mesh_j["primitives"]) {
             std::cout << "Primitive = " << primitive << "\n";
             auto attributes = primitive["attributes"];
             std::cout << "Attributes = " << attributes << "\n";
@@ -466,23 +473,25 @@ std::vector<Model> process_node(const json &j,
                     float3 position = positions_data[index];
                     positions.push_back(position);
                 }
-                Mesh mesh(indices.size()/3, positions);
-                Model model(mesh, identity());
-                models.push_back(model);
+                mesh = std::make_shared<Mesh>(indices.size()/3, positions);
+
             } else {
                 std::cout << "No indices are present\n";
-                Mesh mesh(positions_data.size()/3, positions_data);
-                Model model(mesh, identity());
-                models.push_back(model);
+                mesh = std::make_shared<Mesh>(positions_data.size()/3, positions_data);
             }
+            
+            model = std::make_shared<Model>(mesh);
+            models.push_back(model);
+            
             // TODO: Get normals
             // TODO: Get TEXCOORD_0
             
             // Get material
             if (primitive["material"] != nullptr) {
                 int material_id = primitive["material"].get<int>();
-                // TODO: 
+                model->material = materials[material_id];    
             }
+
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
             // }
@@ -512,14 +521,14 @@ Scene create_scene_from_gltf() {
     Scene scn;
 
     // Pre-Create all materials
-    std::vector<Material> materials = CreateMaterials(j);
+    std::vector<std::shared_ptr<Material>> materials = CreateMaterials(j, base_path);
 
     auto scenes = j["scenes"];
     auto nodes = j["nodes"];
     for (auto scene : scenes) {
         std::cout << "Scene = " << scene << "\n";
         for (int node_id : scene["nodes"]) {
-            std::vector<Model> models = process_node(j, base_path, node_id, materials);
+            std::vector<std::shared_ptr<Model>> models = process_node(j, base_path, node_id, materials);
             scn.models.insert(scn.models.end(), models.begin(), models.end());
         }
     }
