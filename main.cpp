@@ -388,8 +388,6 @@ void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     // std::cout << "Rendering ended\n";
 }
 
-
-
 void update_surface(unsigned char *surface, FrameBuffer &fb) {
     for (int x = 0; x < fb.width; x++) {
         for (int y = 0; y < fb.height; y++) {
@@ -403,35 +401,9 @@ void update_surface(unsigned char *surface, FrameBuffer &fb) {
     }
 }
 
-std::vector<uint16_t> access_uint16_data(const json &j, std::string base_path, int accessor_id) {
-    std::vector<uint16_t> data;
-    auto accessor = j["accessors"][accessor_id];
-    auto buffer_view = j["bufferViews"][int(accessor["bufferView"])];
-    int buffer_index = int(buffer_view["buffer"]);
-    std::string bin_uri = j["buffers"][buffer_index]["uri"];
-    std::string bin_path = base_path + bin_uri;
-    std::ifstream bin_stream(bin_path, std::ios::binary);
-    int count = accessor["count"];
-    int buffer_view_byte_offset = (buffer_view["byteOffset"] == nullptr)
-                                ? 0 : buffer_view["byteOffset"].get<int>();
-    int accessor_byte_offset = (accessor["byteOffset"] == nullptr)
-                                ? 0 : accessor["byteOffset"].get<int>();
-    int byte_offset = buffer_view_byte_offset + accessor_byte_offset;
-    int stride = (buffer_view["byteStride"] == nullptr) ? 2 : int(buffer_view["byteStride"]);
-    bin_stream.seekg(byte_offset);
-    for (int i = 0; i < count; i++) {
-        uint16_t ui;
-        bin_stream.read(reinterpret_cast<char*>(&ui), sizeof(uint16_t));
-        data.push_back(ui);
-        // Since we extracted 1 uint16, move back 2 bytes 
-        // and move forward by stride
-        bin_stream.seekg(int(bin_stream.tellg()) - 2 + stride);
-    }
-    return data;
-}
-
-std::vector<float3> access_float3_data(const json &j, std::string base_path, int accessor_id) {
-    std::vector<float3> data;
+template<typename T>
+std::vector<T> access_data(const json &j, std::string base_path, int accessor_id) {
+    std::vector<T> data;
     auto accessor = j["accessors"][accessor_id];
     auto buffer_view = j["bufferViews"][int(accessor["bufferView"])];
     int buffer_index = int(buffer_view["buffer"]);
@@ -445,15 +417,13 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
                                 ? 0 : accessor["byteOffset"].get<int>();
     int byte_offset = buffer_view_byte_offset + accessor_byte_offset;
     int stride = (buffer_view["byteStride"] == nullptr) 
-                                ? sizeof(float3) : int(buffer_view["byteStride"]);
+                                ? sizeof(T) : int(buffer_view["byteStride"]);
     bin_stream.seekg(byte_offset);
     for (int i = 0; i < count; i++) {
-        float3 f3;
-        bin_stream.read(reinterpret_cast<char*>(&f3), sizeof(float3));
-        data.push_back(f3);
-        // Since we extracted 3 floats, move back 12 bytes 
-        // and move forward by stride
-        bin_stream.seekg(int(bin_stream.tellg()) - sizeof(float3) + stride);
+        T d;
+        bin_stream.read(reinterpret_cast<char*>(&d), sizeof(T));
+        data.push_back(d);
+        bin_stream.seekg(int(bin_stream.tellg()) - sizeof(T) + stride);
     }
     return data;
 }
@@ -482,13 +452,13 @@ std::vector<Model> process_node(const json &j,
             std::cout << "Attributes = " << attributes << "\n";
             // Get positions
             int position_accessor_id = attributes["POSITION"];
-            std::vector<float3> positions_data = access_float3_data(j, 
+            std::vector<float3> positions_data = access_data<float3>(j, 
                                                 base_path, position_accessor_id);
             std::cout << "Got positions data\n";
             // Get indices if present
             if (primitive["indices"] != nullptr) {
                 std::cout << "Indices are present\n";
-                std::vector<uint16_t> indices = access_uint16_data(j, 
+                std::vector<uint16_t> indices = access_data<uint16_t>(j, 
                                                 base_path, primitive["indices"]);
                 std::vector<float3> positions;
                 for (uint16_t index : indices) {
