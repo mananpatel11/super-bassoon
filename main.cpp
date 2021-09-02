@@ -197,7 +197,7 @@ std::shared_ptr<Mesh> Mesh::createCubeMesh() {
 class Model {
     public:
     Model() : mesh(nullptr), material(nullptr), transform(identity()) {}
-    Model(std::shared_ptr<Mesh> _m, float4x4 _transform) : mesh(_m), transform(_transform) {}
+    Model(std::shared_ptr<Mesh> _m, float4x4 _transform = identity()) : mesh(_m), transform(_transform) {}
     std::shared_ptr<Mesh> mesh;
     float4x4 transform;
     std::shared_ptr<Material> material;
@@ -462,7 +462,7 @@ std::vector<float3> access_float3_data(const json &j, std::string base_path, int
 std::vector<std::shared_ptr<Model>> process_node(const json &j,
                                 std::string base_path,
                                 int node_id,
-                                std::vector<Material> materials) {
+                                std::vector<std::shared_ptr<Material>> materials) {
     std::vector<std::shared_ptr<Model>> models;
     json node = j["nodes"][node_id];
     // Handle all children
@@ -475,6 +475,7 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
     
     std::shared_ptr<Model> model(nullptr);
     std::shared_ptr<Mesh> mesh(nullptr);
+
     // If node is a mesh node, create a model
     if (node["mesh"] != nullptr) {
         int mesh_id = node["mesh"];
@@ -506,17 +507,19 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 std::cout << "No indices are present\n";
                 mesh = std::make_shared<Mesh>(positions_data.size()/3, positions_data);
             }
+            
+            model = std::make_shared<Model>(mesh);
+            models.push_back(model);
+            
             // TODO: Get normals
             // TODO: Get TEXCOORD_0
             
             // Get material
             if (primitive["material"] != nullptr) {
                 int material_id = primitive["material"].get<int>();
-                // TODO: 
+                model->material = materials[material_id];    
             }
-            float4x4 idtt = identity();
-            model = std::make_shared<Model>(mesh, idtt);
-            models.push_back(model);
+
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
             // }
@@ -546,7 +549,7 @@ Scene create_scene_from_gltf() {
     Scene scn;
 
     // Pre-Create all materials
-    std::vector<Material> materials = CreateMaterials(j);
+    std::vector<std::shared_ptr<Material>> materials = CreateMaterials(j, base_path);
 
     auto scenes = j["scenes"];
     auto nodes = j["nodes"];
