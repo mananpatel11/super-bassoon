@@ -1,5 +1,38 @@
 #include "data_types.h"
 
+float2 operator*(float lhs, float2 rhs) {
+    return float2(lhs*rhs.x, lhs*rhs.y);
+}
+
+float2 operator/(float2 num, float den) {
+    return float2(num.x/den, num.y/den);
+}
+
+float2 operator+(float2 lhs, float2 rhs) {
+    return float2(lhs.x + rhs.x, lhs.y + rhs.y);
+}
+
+float2 operator-(float2 lhs, float2 rhs) {
+    return float2(lhs.x - rhs.x, lhs.y - rhs.y);
+}
+
+float dot(float2 lhs, float2 rhs) {
+    return float(lhs.x*rhs.x + lhs.y*rhs.y);
+}
+
+float magnitude(float2 vec) {
+    return sqrt(vec.x*vec.x + vec.y*vec.y);
+}
+
+float2 normal(float2 vec) {
+    return vec/magnitude(vec);
+}
+
+std::ostream& operator<<(std::ostream& os, float2 &vec2) {
+    os << "(" << vec2.x << ", " << vec2.y << ")";
+    return os;
+}
+
 float3 operator*(float lhs, float3 rhs) {
     return float3(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z);
 }

@@ -16,8 +16,8 @@ struct Sampler {
     Sampler() {}
     int mag_filter = 9728;  // NEAREST
     int min_filter = 9728;  // NEAREST
-    int wrap_s = 33071;     // CLAMP_TO_EDGE
-    int wrap_t = 33071;     // CLAMP_TO_EDGE
+    int wrap_s = 10497;     // REPEAT
+    int wrap_t = 10497;     // REPEAT
 }; 
 
 struct Texture {

@@ -35,3 +35,6 @@ basoon
 
 # Image files
 *.ppm
+
+# Mac specific
+**.DS_Store

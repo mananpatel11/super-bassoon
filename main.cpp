@@ -37,11 +37,15 @@ using json = nlohmann::json;
 // vertices/faces/normals/texcoords etc.
 class Mesh {
     public:
-    Mesh(int _num_triangles, std::vector<float3> _vertices, std::vector<float3> _colors)
+    Mesh(int _num_triangles,
+         std::vector<float3> _vertices,
+         std::vector<float3> _colors)
         : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
-    Mesh(int _num_triangles, std::vector<float3> _vertices) :
+    Mesh(int _num_triangles,
+         std::vector<float3> _vertices) :
         num_triangles(_num_triangles),
-        vertices(_vertices) {
+        vertices(_vertices) 
+        {
             colors = std::vector<float3>();
             std::random_device rd;  //Will be used to obtain a seed for the random number engine
             std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -58,7 +62,9 @@ class Mesh {
             }
         }
     std::vector<float3> vertices;
+    std::vector<float3> normals;
     std::vector<float3> colors;
+    std::vector<float2> texcoords;
     int num_triangles;
     static std::shared_ptr<Mesh> createTriangleMesh();
     static std::shared_ptr<Mesh> createQuadMesh();
@@ -479,19 +485,28 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 std::cout << "No indices are present\n";
                 mesh = std::make_shared<Mesh>(positions_data.size()/3, positions_data);
             }
-            
-            model = std::make_shared<Model>(mesh);
-            models.push_back(model);
-            
-            // TODO: Get normals
+                    
+            if (attributes["NORMAL"] != nullptr) {
+                int normal_id = attributes["NORMAL"];
+                auto normals_data = access_data<float3>(j, base_path, normal_id);
+                mesh->normals = normals_data;
+            }
             // TODO: Get TEXCOORD_0
-            
+            if (attributes["TEXCOORD_0"] != nullptr) {
+                int texcoord_id = attributes["TEXCOORD_0"];
+                auto texture_coord_data = access_data<float2>(j, base_path, texcoord_id);
+                mesh->texcoords = texture_coord_data;
+            }
+
+            model = std::make_shared<Model>(mesh);
+
             // Get material
             if (primitive["material"] != nullptr) {
                 int material_id = primitive["material"].get<int>();
                 model->material = materials[material_id];    
             }
 
+            models.push_back(model);
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
             // }

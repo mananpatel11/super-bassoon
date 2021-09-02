@@ -7,6 +7,22 @@
 #include <cmath>
 #include <math.h>
 
+struct float2 {
+    float x;
+    float y;
+    float2() = default;
+    float2(float _x, float _y) : x(_x), y(_y) {}
+};
+
+float2 operator*(float lhs, float2 rhs);
+float2 operator/(float2 num, float den);
+float2 operator+(float2 lhs, float2 rhs);
+float2 operator-(float2 lhs, float2 rhs);
+float dot(float2 lhs, float2 rhs);
+float magnitude(float2 vec);
+float2 normal(float2 vec);
+std::ostream& operator<<(std::ostream& os, float2 &vec2);
+
 struct float3 {
     float x;
     float y;
