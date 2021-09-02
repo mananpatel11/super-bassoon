@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/basoon",
             "targetArchitecture": "x86_64",
             "args": [],
-            "stopAtEntry": true,
+            // "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
