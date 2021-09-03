@@ -9,7 +9,7 @@
 				"-g",
 				"-target",
 				"x86_64-apple-darwin",
-				"-O3",
+				"-O2",
 				"-Wall",
 				"-Wextra",
 				"-std=c++17",
