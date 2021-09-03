@@ -10,6 +10,8 @@
 				"-target",
 				"x86_64-apple-darwin",
 				"-O3",
+				"-Wall",
+				"-Wextra",
 				"-std=c++17",
 				"-framework",
 				"Cocoa",

@@ -3,7 +3,7 @@
 using json = nlohmann::json; 
 
 // Create all samplers from json
-std::vector<std::shared_ptr<Sampler>> CreateSamplers(const json &j, const std::string &base_path) {
+std::vector<std::shared_ptr<Sampler>> CreateSamplers(const json &j) {
     std::vector<std::shared_ptr<Sampler>> samplers;
     if (j["samplers"] == nullptr) {
         return samplers;
@@ -26,7 +26,7 @@ std::vector<std::shared_ptr<Texture>> CreateTextures(const json &j, const std::s
     if (j["textures"] == nullptr) {
         return textures;
     }
-    auto samplers = CreateSamplers(j, base_path);
+    auto samplers = CreateSamplers(j);
     std::shared_ptr<Sampler> default_sampler = std::make_shared<Sampler>();
     auto images_j = j["images"];
     for (auto texture_j : j["textures"]) {

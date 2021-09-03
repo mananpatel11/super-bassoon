@@ -41,7 +41,7 @@ class Mesh {
     Mesh(int _num_triangles,
          std::vector<float3> _vertices,
          std::vector<float3> _colors)
-        : vertices(_vertices), num_triangles(_num_triangles), colors(_colors) {}
+        : num_triangles(_num_triangles), vertices(_vertices), colors(_colors) {}
     Mesh(int _num_triangles,
          std::vector<float3> _vertices) :
         num_triangles(_num_triangles),
@@ -62,12 +62,12 @@ class Mesh {
                 colors.push_back(color_options[distrib(gen)]);
             }
         }
+    int num_triangles;
     std::vector<uint16_t> indices;
     std::vector<float3> vertices;
     std::vector<float3> normals;
     std::vector<float3> colors;
     std::vector<float2> texcoords;
-    int num_triangles;
     static std::shared_ptr<Mesh> createTriangleMesh();
     static std::shared_ptr<Mesh> createQuadMesh();
     static std::shared_ptr<Mesh> createCubeMesh();
@@ -91,7 +91,7 @@ std::shared_ptr<Mesh> Mesh::createTriangleMesh() {
     colors.push_back(c0);
     colors.push_back(c1);
     colors.push_back(c2);
-    return std::make_shared<Mesh>(1, vertices, colors);
+    return std::make_shared<Mesh>(num_triangles, vertices, colors);
 }
 
 std::shared_ptr<Mesh> Mesh::createQuadMesh() {
@@ -204,12 +204,12 @@ std::shared_ptr<Mesh> Mesh::createCubeMesh() {
 
 class Model {
     public:
-    Model() : mesh(nullptr), material(nullptr), transform(identity()) {}
+    Model() : mesh(nullptr), transform(identity()), material(nullptr) {}
     Model(std::shared_ptr<Mesh> _m, float4x4 _transform = identity()) : mesh(_m), transform(_transform) {}
     std::shared_ptr<Mesh> mesh;
     float4x4 transform;
     std::shared_ptr<Material> material;
-    void draw(FrameBuffer &fb, float4x4 &view_transform);
+    void draw(FrameBuffer &fb, float4x4 &view_transform, float4x4 &projection_matrix);
 };
 
 struct Varyings {
@@ -265,13 +265,8 @@ float edge_function(float4 a, float4 b, float4 c) {
     return w;
 }
 
-void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
+void Model::draw(FrameBuffer &fb, float4x4 &view_transform, float4x4 &projection_matrix) {
     fb.clear(); // Clear the framebuffer
-
-    float4x4 perspective_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
-    float4x4 ortho_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
-    // float4x4 projection_matrix = perspective_matrix;
-    float4x4 projection_matrix = ortho_matrix;
     for (int i = 0; i < mesh->num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
         
@@ -433,9 +428,9 @@ class Renderer {
 
 void Renderer::Render(FrameBuffer &fb, Scene &scn) {
     // std::cout << "Rendering started\n";
-    for (int i = 0; i < scn.models.size(); i++) {
+    for (size_t i = 0; i < scn.models.size(); i++) {
         std::shared_ptr<Model> m = scn.models[i];
-        m->draw(fb, scn.view_matrix);
+        m->draw(fb, scn.view_matrix, scn.projection_matrix);
         // exit(0);
     }
     // std::cout << "Rendering ended\n";
@@ -599,6 +594,8 @@ void game_loop() {
     //Scene scn = Scene::CreateTriangleScene();
     //Scene scn = Scene::CreateCubeScene();
     Scene scn = create_scene_from_gltf();
+    // scn.projection_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
+    scn.projection_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 
