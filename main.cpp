@@ -526,7 +526,7 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 model->material = materials[material_id];    
             }
             
-            // model->transform = scalingMatrix(0.03, 0.03, 0.03);
+            model->transform = scalingMatrix(0.015, 0.015, 0.015);
             models.push_back(model);
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
@@ -546,10 +546,10 @@ Scene create_scene_from_gltf() {
     // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     
-    std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
-    std::string gltf_path = base_path + "BoxTextured.gltf";
-    // std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
-    // std::string gltf_path = base_path + "Duck.gltf";
+    // std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
+    // std::string gltf_path = base_path + "BoxTextured.gltf";
+    std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
+    std::string gltf_path = base_path + "Duck.gltf";
     
     // std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
     // std::string gltf_path = base_path + "WaterBottle.gltf";
