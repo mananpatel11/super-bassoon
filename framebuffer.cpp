@@ -1,7 +1,6 @@
 #include "framebuffer.h"
 
 void FrameBuffer::writeColor(Coord2D coord, Color c) {
-    //std::cout << "Writing color at x = " << coord.x << " y = " << coord.y << "\n";
     color_buffer[coord.y*width + coord.x] = c;
 }
 

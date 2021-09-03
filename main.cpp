@@ -234,24 +234,22 @@ Varyings vertex_shader(float3 position,
     vout.position = vout.position/vout.position.w;
     vout.color = color;
     vout.texture_coord = texture_coord;
-    // std::cout << position << "\t" << texture_coord << "\n";
     return vout;
 }
 
 float4 sample(std::shared_ptr<Texture> texture, float2 coord) {
-    // float x = coord.x - floorf(coord.x);
-    // float y = coord.y = floorf(coord.y);
     float x = coord.x;
     float y = coord.y;
     int pix_x = x * texture->width;
     int pix_y = y * texture->height;
     
-    unsigned char r = texture->bytes[pix_y*texture->width*4 + pix_x*4+0];
-    unsigned char g = texture->bytes[pix_y*texture->width*4 + pix_x*4+1];
-    unsigned char b = texture->bytes[pix_y*texture->width*4 + pix_x*4+2];
-    unsigned char a = texture->bytes[pix_y*texture->width*4 + pix_x*4+3];
+    int pix_location = pix_y*texture->width*4 + pix_x*4;
+    unsigned char r = texture->bytes[pix_location + 0];
+    unsigned char g = texture->bytes[pix_location + 1];
+    unsigned char b = texture->bytes[pix_location + 2];
+    unsigned char a = texture->bytes[pix_location + 3];
 
-    return float4(float(r)/256, float(g)/256, float(b)/256, float(a)/256);
+    return float4(r, g, b, a)/256;
 }
 
 // The position fragment shader receives is interpolated
@@ -276,6 +274,9 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
     float4x4 projection_matrix = ortho_matrix;
     for (int i = 0; i < mesh->num_triangles; i++) {
         std::vector<Varyings> vertex_outs;
+        
+        float2 bbmin(INFINITY, INFINITY);
+        float2 bbmax(-INFINITY, -INFINITY);
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             int index = -1;
@@ -288,6 +289,10 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
             float3 color_in = mesh->colors[index];
             float2 texture_coord = mesh->texcoords[index];
             Varyings vertex_out = vertex_shader(pos_in, color_in, texture_coord, transform, view_transform, projection_matrix);
+            if (vertex_out.position.x < bbmin.x) bbmin.x = vertex_out.position.x;
+            if (vertex_out.position.y < bbmin.y) bbmin.y = vertex_out.position.y;
+            if (vertex_out.position.x > bbmax.x) bbmax.x = vertex_out.position.x;
+            if (vertex_out.position.y > bbmax.y) bbmax.y = vertex_out.position.y;
             vertex_outs.push_back(vertex_out);
         }
         //exit(0);
@@ -304,6 +309,11 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform) {
                 // Find pixel center
                 p.x = (pixel.x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
                 p.y = (pixel.y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
+
+                // If pixel is out of bbox of the triangle
+                if (p.x < bbmin.x || p.x > bbmax.x || p.y < bbmin.y || p.y > bbmax.y) {
+                    continue;
+                }
 
                 //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
 
@@ -581,8 +591,8 @@ Scene create_scene_from_gltf() {
 }
 
 void game_loop() {
-    int width = 250;
-    int height = 250;
+    int width = 500;
+    int height = 500;
 
     // Create Scene
     Camera cam;
