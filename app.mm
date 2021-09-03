@@ -165,7 +165,7 @@ void Window::destroy() {
 }
 
 void Window::handle_key_down(int virtual_key) {
-    std::cout << "Recieved key " << virtual_key << "\n";
+    // std::cout << "Recieved key " << virtual_key << "\n";
     switch (virtual_key) {
         case 0x00: record.left  += 0.1;     break; // a
         case 0x02: record.right += 0.1;     break; // d
