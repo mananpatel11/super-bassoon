@@ -291,21 +291,17 @@ void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4
 
         // Rasterize and shade
         // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/rasterization-stage
+        float4 p;
         for (int x = 0; x < fb.width; x++) {
+            p.x = (x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
+            if (p.x < bbmin.x || p.x > bbmax.x) {
+                continue;
+            }
             for (int y = 0; y < fb.height; y++) {
-                Coord2D pixel(x, y);
-                float4 p;
-                // Find pixel center
-                p.x = (pixel.x * 2.0/fb.width) - 1.0 + (1.0 / fb.width);
-                p.y = (pixel.y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
-
-                // If pixel is out of bbox of the triangle
-                if (p.x < bbmin.x || p.x > bbmax.x || p.y < bbmin.y || p.y > bbmax.y) {
+                p.y = (y * 2.0/fb.height) - 1.0 + (1.0 / fb.height);
+                if (p.y < bbmin.y || p.y > bbmax.y) {
                     continue;
                 }
-
-                //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
-
                 // Check if pixel is covered by triangle
                 float area = edge_function(vertex_outs[0].position, vertex_outs[1].position, vertex_outs[2].position);
                 float e01 = edge_function(p, vertex_outs[0].position, vertex_outs[1].position);
@@ -314,8 +310,6 @@ void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4
 
                 // If pixel is covered
                 if ((e01 >= 0) && (e12 >= 0) && (e20 >= 0)) {
-                    //std::cout << "p = (" << p.x << "," << p.y << ")\n"; 
-
                     // Compute barycentrics
                     float w2 = e01/area;
                     float w0 = e12/area;
@@ -328,7 +322,7 @@ void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4
                     varyings.texture_coord = w0*vertex_outs[0].texture_coord + w1*vertex_outs[1].texture_coord + w2*vertex_outs[2].texture_coord;
                     // Run fragment shader
                     float3 color = fragment_shader(varyings, material->base_color_texture);
-                    fb.writeColor(pixel, color);
+                    fb.writeColor(Coord2D(x, y), color);
                 }
             }
         }
@@ -532,7 +526,7 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 model->material = materials[material_id];    
             }
             
-            model->transform = scalingMatrix(0.03, 0.03, 0.03);
+            // model->transform = scalingMatrix(0.03, 0.03, 0.03);
             models.push_back(model);
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
@@ -552,8 +546,10 @@ Scene create_scene_from_gltf() {
     // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     
-    std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
-    std::string gltf_path = base_path + "Duck.gltf";
+    std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
+    std::string gltf_path = base_path + "BoxTextured.gltf";
+    // std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
+    // std::string gltf_path = base_path + "Duck.gltf";
     
     // std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
     // std::string gltf_path = base_path + "WaterBottle.gltf";
@@ -579,8 +575,8 @@ Scene create_scene_from_gltf() {
 }
 
 void game_loop() {
-    int width = 250;
-    int height = 250;
+    int width = 500;
+    int height = 500;
 
     // Create Scene
     Camera cam;
@@ -588,7 +584,7 @@ void game_loop() {
     //Scene scn = Scene::CreateCubeScene();
     Scene scn = create_scene_from_gltf();
     // scn.projection_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
-    scn.projection_matrix = orthographicProjectionMatrix(10.0, 10.0, 0, 10.0);
+    scn.projection_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 

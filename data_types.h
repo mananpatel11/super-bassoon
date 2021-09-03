@@ -14,14 +14,14 @@ struct float2 {
     float2(float _x, float _y) : x(_x), y(_y) {}
 };
 
-float2 operator*(float lhs, float2 rhs);
-float2 operator/(float2 num, float den);
-float2 operator+(float2 lhs, float2 rhs);
-float2 operator-(float2 lhs, float2 rhs);
-float dot(float2 lhs, float2 rhs);
-float magnitude(float2 vec);
-float2 normal(float2 vec);
-std::ostream& operator<<(std::ostream& os, float2 &vec2);
+float2 operator*(float lhs, const float2 &rhs);
+float2 operator/(const float2 &num, float den);
+float2 operator+(const float2 &lhs, const float2 &rhs);
+float2 operator-(const float2 &lhs, const float2 &rhs);
+float dot(const float2 &lhs, const float2 &rhs);
+float magnitude(const float2 &vec);
+float2 normal(const float2 &vec);
+std::ostream& operator<<(std::ostream& os, const float2 &vec2);
 
 struct float3 {
     float x;
@@ -31,15 +31,15 @@ struct float3 {
     float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 };
 
-float3 operator*(float lhs, float3 rhs);
-float3 operator/(float3 num, float den);
-float3 operator+(float3 lhs, float3 rhs);
-float3 operator-(float3 lhs, float3 rhs);
-float dot(float3 lhs, float3 rhs);
-float3 cross(float3 a, float3 b);
-float magnitude(float3 vec);
-float3 normal(float3 vec);
-std::ostream& operator<<(std::ostream& os, float3 &vec3);
+float3 operator*(const float &lhs, const float3 &rhs);
+float3 operator/(const float3 &num, const float &den);
+float3 operator+(const float3 &lhs, const float3 &rhs);
+float3 operator-(const float3 &lhs, const float3 &rhs);
+float dot(const float3 &lhs, const float3 &rhs);
+float3 cross(const float3 &a, const float3 &b);
+float magnitude(const float3 &vec);
+float3 normal(const float3 &vec);
+std::ostream& operator<<(std::ostream& os, const float3 &vec3);
 
 struct float4 {
     float x;

@@ -1,77 +1,72 @@
 #include "data_types.h"
 
-float2 operator*(float lhs, float2 rhs) {
+float2 operator*(float lhs, const float2 &rhs) {
     return float2(lhs*rhs.x, lhs*rhs.y);
 }
 
-float2 operator/(float2 num, float den) {
+float2 operator/(const float2 &num, float den) {
     return float2(num.x/den, num.y/den);
 }
 
-float2 operator+(float2 lhs, float2 rhs) {
+float2 operator+(const float2 &lhs, const float2 &rhs) {
     return float2(lhs.x + rhs.x, lhs.y + rhs.y);
 }
 
-float2 operator-(float2 lhs, float2 rhs) {
+float2 operator-(const float2 &lhs, const float2 &rhs) {
     return float2(lhs.x - rhs.x, lhs.y - rhs.y);
 }
 
-float dot(float2 lhs, float2 rhs) {
+float dot(const float2 &lhs, const float2 &rhs) {
     return float(lhs.x*rhs.x + lhs.y*rhs.y);
 }
 
-float magnitude(float2 vec) {
+float magnitude(const float2 &vec) {
     return sqrt(vec.x*vec.x + vec.y*vec.y);
 }
 
-float2 normal(float2 vec) {
+float2 normal(const float2 &vec) {
     return vec/magnitude(vec);
 }
 
-std::ostream& operator<<(std::ostream& os, float2 &vec2) {
+std::ostream& operator<<(std::ostream& os, const float2 &vec2) {
     os << "(" << vec2.x << ", " << vec2.y << ")";
     return os;
 }
 
-float3 operator*(float lhs, float3 rhs) {
+float3 operator*(const float &lhs, const float3 &rhs) {
     return float3(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z);
 }
 
-float3 operator/(float3 num, float den) {
+float3 operator/(const float3 &num, const float &den) {
     return float3(num.x/den, num.y/den, num.z/den);
 }
 
-float3 operator+(float3 lhs, float3 rhs) {
+float3 operator+(const float3 &lhs, const float3 &rhs) {
     return float3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 }
 
-float3 operator-(float3 lhs, float3 rhs) {
+float3 operator-(const float3 &lhs, const float3 &rhs) {
     return float3(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z);
 }
 
-float dot(float3 lhs, float3 rhs) {
+float dot(const float3 &lhs, const float3 &rhs) {
     return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z);
 }
 
-float3 cross(float3 a, float3 b) {
+float3 cross(const float3 &a, const float3 &b) {
     return float3((a.y*b.z - a.z*b.y), -(a.x*b.z - a.z*b.x), (a.x*b.y - a.y*b.x));
 }
 
-float magnitude(float3 vec) {
+float magnitude(const float3 &vec) {
     return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z);
 }
 
-float3 normal(float3 vec) {
+float3 normal(const float3 &vec) {
     return (vec/magnitude(vec));
 }
 
-std::ostream& operator<<(std::ostream& os, float3& vec) {
+std::ostream& operator<<(std::ostream& os, const float3& vec) {
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, float4& vec) {
-    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
     return os;
 }
 
@@ -101,6 +96,11 @@ float magnitude(const float4 &vec) {
 
 float4 normal(const float4 &vec) {
     return (vec/magnitude(vec));
+}
+
+std::ostream& operator<<(std::ostream& os, float4& vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, float4x4 M) {
