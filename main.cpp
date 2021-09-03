@@ -209,7 +209,7 @@ class Model {
     std::shared_ptr<Mesh> mesh;
     float4x4 transform;
     std::shared_ptr<Material> material;
-    void draw(FrameBuffer &fb, float4x4 &view_transform, float4x4 &projection_matrix);
+    void draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4 &projection_matrix);
 };
 
 struct Varyings {
@@ -219,76 +219,70 @@ struct Varyings {
     Varyings() = default;
 };
 
-Varyings vertex_shader(float3 position,
-                       float3 color,
-                       float2 texture_coord,
-                       float4x4 model_transform,
-                       float4x4 view_transform,
-                       float4x4 projection_matrix) {
+Varyings vertex_shader(const float3 &position,
+                       const float3 &color,
+                       const float2 &texture_coord,
+                       const float4x4 &mvp) {
     Varyings vout;
     vout.position.x = position.x;
     vout.position.y = position.y;
     vout.position.z = position.z;
     vout.position.w = 1;
-    vout.position = projection_matrix*view_transform*model_transform*vout.position;
+    vout.position = mvp*vout.position;
     vout.position = vout.position/vout.position.w;
     vout.color = color;
     vout.texture_coord = texture_coord;
     return vout;
 }
 
-float4 sample(std::shared_ptr<Texture> texture, float2 coord) {
+float4 sample(const std::shared_ptr<Texture> &texture, const float2 &coord) {
     float x = coord.x;
     float y = coord.y;
     int pix_x = x * texture->width;
     int pix_y = y * texture->height;
     
-    int pix_location = pix_y*texture->width*4 + pix_x*4;
-    unsigned char r = texture->bytes[pix_location + 0];
-    unsigned char g = texture->bytes[pix_location + 1];
-    unsigned char b = texture->bytes[pix_location + 2];
-    unsigned char a = texture->bytes[pix_location + 3];
-
-    return float4(r, g, b, a)/256;
+    int pix_location = pix_y*texture->width + pix_x;
+    return texture->colors[pix_location];
 }
 
 // The position fragment shader receives is interpolated
-float3 fragment_shader(Varyings frag_in, std::shared_ptr<Texture> texture) {
+float3 fragment_shader(const Varyings &frag_in, const std::shared_ptr<Texture> &texture) {
     float2 coord = frag_in.texture_coord;
     float4 c = sample(texture, coord);
     return float3(c.x, c.y, c.z);
     // return frag_in.color;
 }
 
-float edge_function(float4 a, float4 b, float4 c) {
+float edge_function(const float4 &a, const float4 &b, const float4 &c) {
     float w = (a.x - b.x)*(c.y - b.y) - (a.y - b.y)*(c.x - b.x);
     return w;
 }
 
-void Model::draw(FrameBuffer &fb, float4x4 &view_transform, float4x4 &projection_matrix) {
+void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4 &projection_matrix) {
     fb.clear(); // Clear the framebuffer
-    for (int i = 0; i < mesh->num_triangles; i++) {
-        std::vector<Varyings> vertex_outs;
-        
+    float4x4 mvp = projection_matrix*view_transform*transform;
+    std::array<Varyings, 3> vertex_outs;
+    for (int i = 0; i < mesh->num_triangles; i++) {    
         float2 bbmin(INFINITY, INFINITY);
         float2 bbmax(-INFINITY, -INFINITY);
+        bool use_indices = (mesh->indices.size() != 0);
         for (int vid = 0; vid < 3; vid++) {
             // run vertex shading
             int index = -1;
-            if (mesh->indices.size() == 0) {
-                index = i*3 + vid;
-            } else {
+            if (use_indices) {
                 index = mesh->indices[i*3 + vid];
+            } else {
+                index = i*3 + vid;
             }
             float3 pos_in = mesh->vertices[index];
             float3 color_in = mesh->colors[index];
             float2 texture_coord = mesh->texcoords[index];
-            Varyings vertex_out = vertex_shader(pos_in, color_in, texture_coord, transform, view_transform, projection_matrix);
+            Varyings vertex_out = vertex_shader(pos_in, color_in, texture_coord, mvp);
             if (vertex_out.position.x < bbmin.x) bbmin.x = vertex_out.position.x;
             if (vertex_out.position.y < bbmin.y) bbmin.y = vertex_out.position.y;
             if (vertex_out.position.x > bbmax.x) bbmax.x = vertex_out.position.x;
             if (vertex_out.position.y > bbmax.y) bbmax.y = vertex_out.position.y;
-            vertex_outs.push_back(vertex_out);
+            vertex_outs[vid] = vertex_out;
         }
         //exit(0);
 
@@ -340,8 +334,6 @@ void Model::draw(FrameBuffer &fb, float4x4 &view_transform, float4x4 &projection
         }
     }
 }
-
-
 
 struct Camera {
     Camera() : yaw(M_PI_2), pitch(0) {}
@@ -539,7 +531,8 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 int material_id = primitive["material"].get<int>();
                 model->material = materials[material_id];    
             }
-
+            
+            model->transform = scalingMatrix(0.03, 0.03, 0.03);
             models.push_back(model);
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
@@ -547,7 +540,7 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
         }
     } else if (node["camera"] != nullptr) {
         std::cout << "Not handling camera ATM\n";
-        exit(-1);
+        //exit(-1);
     } else if (node["skin"] != nullptr) {
         std::cout << "Not handling skin ATM\n";
     }
@@ -559,8 +552,8 @@ Scene create_scene_from_gltf() {
     // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
     // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
     
-    std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
-    std::string gltf_path = base_path + "BoxTextured.gltf";
+    std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
+    std::string gltf_path = base_path + "Duck.gltf";
     
     // std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
     // std::string gltf_path = base_path + "WaterBottle.gltf";
@@ -586,8 +579,8 @@ Scene create_scene_from_gltf() {
 }
 
 void game_loop() {
-    int width = 500;
-    int height = 500;
+    int width = 250;
+    int height = 250;
 
     // Create Scene
     Camera cam;
@@ -595,7 +588,7 @@ void game_loop() {
     //Scene scn = Scene::CreateCubeScene();
     Scene scn = create_scene_from_gltf();
     // scn.projection_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
-    scn.projection_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
+    scn.projection_matrix = orthographicProjectionMatrix(10.0, 10.0, 0, 10.0);
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 

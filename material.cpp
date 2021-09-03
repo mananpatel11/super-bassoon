@@ -53,7 +53,16 @@ std::vector<std::shared_ptr<Texture>> CreateTextures(const json &j, const std::s
                 std::cerr << "Unable to open file " << image_path << "\n";
                 exit(-1);
             }
-            auto texture = std::make_shared<Texture>(width, height, bytes, sampler);
+            std::vector<float4> colors;
+            for (uint i = 0; i < width*height; i++) {
+                unsigned char r = bytes[i*4 + 0];
+                unsigned char g = bytes[i*4 + 1];
+                unsigned char b = bytes[i*4 + 2];
+                unsigned char a = bytes[i*4 + 3];
+                float4 color = float4(r, g, b, a)/256;
+                colors.push_back(color);
+            }
+            auto texture = std::make_shared<Texture>(width, height, colors, sampler);
             textures.push_back(texture);
         } else {
             std::cerr << "No texture source provided\n";

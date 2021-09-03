@@ -75,31 +75,31 @@ std::ostream& operator<<(std::ostream& os, float4& vec) {
     return os;
 }
 
-float4 operator*(float lhs, float4 rhs) {
+float4 operator*(const float &lhs, const float4 &rhs) {
     return float4(lhs*rhs.x, lhs*rhs.y, lhs*rhs.z, lhs*rhs.w);
 }
 
-float4 operator/(float4 num, float den) {
+float4 operator/(const float4 &num, const float &den) {
     return float4(num.x/den, num.y/den, num.z/den, num.w/den);
 }
 
-float4 operator+(float4 lhs, float4 rhs) {
+float4 operator+(const float4 &lhs, const float4 &rhs) {
     return float4(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
 }
 
-float4 operator-(float4 lhs, float4 rhs) {
+float4 operator-(const float4 &lhs, const float4 &rhs) {
     return float4(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
 }
 
-float dot(float4 lhs, float4 rhs) {
+float dot(const float4 &lhs, const float4 &rhs) {
     return (lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
 }
 
-float magnitude(float4 vec) {
+float magnitude(const float4 &vec) {
     return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w);
 }
 
-float4 normal(float4 vec) {
+float4 normal(const float4 &vec) {
     return (vec/magnitude(vec));
 }
 
@@ -126,28 +126,33 @@ float4x4 operator/(float4x4 M, float scalar) {
     return M;
 }
 
-float4x4 operator*(float4x4 a, float4x4 b) {
+float4x4 operator*(const float4x4 &a, const float4x4 &b) {
     float4x4 result;
 
-    result.row0.x = dot(a.row0, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row0.y = dot(a.row0, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row0.z = dot(a.row0, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row0.w = dot(a.row0, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+    float4 bcol0 = float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x);
+    float4 bcol1 = float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y);
+    float4 bcol2 = float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z);
+    float4 bcol3 = float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w);
 
-    result.row1.x = dot(a.row1, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row1.y = dot(a.row1, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row1.z = dot(a.row1, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row1.w = dot(a.row1, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+    result.row0.x = dot(a.row0, float4(bcol0));
+    result.row0.y = dot(a.row0, float4(bcol1));
+    result.row0.z = dot(a.row0, float4(bcol2));
+    result.row0.w = dot(a.row0, float4(bcol3));
 
-    result.row2.y = dot(a.row2, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row2.z = dot(a.row2, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row2.x = dot(a.row2, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row2.w = dot(a.row2, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+    result.row1.x = dot(a.row1, float4(bcol0));
+    result.row1.y = dot(a.row1, float4(bcol1));
+    result.row1.z = dot(a.row1, float4(bcol2));
+    result.row1.w = dot(a.row1, float4(bcol3));
 
-    result.row3.x = dot(a.row3, float4(b.row0.x, b.row1.x, b.row2.x, b.row3.x));
-    result.row3.y = dot(a.row3, float4(b.row0.y, b.row1.y, b.row2.y, b.row3.y));
-    result.row3.z = dot(a.row3, float4(b.row0.z, b.row1.z, b.row2.z, b.row3.z));
-    result.row3.w = dot(a.row3, float4(b.row0.w, b.row1.w, b.row2.w, b.row3.w));
+    result.row2.y = dot(a.row2, float4(bcol0));
+    result.row2.z = dot(a.row2, float4(bcol1));
+    result.row2.x = dot(a.row2, float4(bcol2));
+    result.row2.w = dot(a.row2, float4(bcol3));
+
+    result.row3.x = dot(a.row3, float4(bcol0));
+    result.row3.y = dot(a.row3, float4(bcol1));
+    result.row3.z = dot(a.row3, float4(bcol2));
+    result.row3.w = dot(a.row3, float4(bcol3));
 
     return result;
 }

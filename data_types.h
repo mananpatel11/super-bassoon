@@ -51,13 +51,13 @@ struct float4 {
 };
 
 std::ostream& operator<<(std::ostream& os, float4& vec);
-float4 operator*(float lhs, float4 rhs);
-float4 operator/(float4 num, float den);
-float4 operator+(float4 lhs, float4 rhs);
-float4 operator-(float4 lhs, float4 rhs);
-float dot(float4 lhs, float4 rhs);
-float magnitude(float4 vec);
-float4 normal(float4 vec);
+float4 operator*(const float &lhs, const float4 &rhs);
+float4 operator/(const float4 &num, const float &den);
+float4 operator+(const float4 &lhs, const float4 &rhs);
+float4 operator-(const float4 &lhs, const float4 &rhs);
+float dot(const float4 &lhs, const float4 &rhs);
+float magnitude(const float4 &vec);
+float4 normal(const float4 &vec);
 
 struct float4x4 {
     float4 row0;
@@ -77,7 +77,7 @@ struct float4x4 {
 std::ostream& operator<<(std::ostream& os, float4x4 M);
 float4 operator*(float4x4 lhs, float4 rhs);
 float4x4 operator/(float4x4 M, float scalar);
-float4x4 operator*(float4x4 a, float4x4 b);
+float4x4 operator*(const float4x4 &a, const float4x4 &b);
 float4x4 identity();
 float4x4 translationMatrix(float x, float y, float z);
 float4x4 scalingMatrix(float x, float y, float z);
@@ -109,4 +109,3 @@ struct Coord2D {
     Coord2D() = default;
     Coord2D(int _x, int _y) : x(_x), y(_y) {}
 };
-

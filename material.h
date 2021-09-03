@@ -21,11 +21,11 @@ struct Sampler {
 }; 
 
 struct Texture {
-    Texture(int _width, int _height, std::vector<unsigned char> _bytes, std::shared_ptr<Sampler> _sampler) :
-            width(_width), height(_height), bytes(_bytes), sampler(_sampler) {};
+    Texture(int _width, int _height, std::vector<float4> _colors, std::shared_ptr<Sampler> _sampler) :
+            width(_width), height(_height), colors(_colors), sampler(_sampler) {};
     unsigned int width;
     unsigned int height;
-    std::vector<unsigned char> bytes;
+    std::vector<float4> colors;
     std::shared_ptr<Sampler> sampler;
 };
 
