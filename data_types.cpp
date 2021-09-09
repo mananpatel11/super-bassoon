@@ -144,9 +144,9 @@ float4x4 operator*(const float4x4 &a, const float4x4 &b) {
     result.row1.z = dot(a.row1, float4(bcol2));
     result.row1.w = dot(a.row1, float4(bcol3));
 
-    result.row2.y = dot(a.row2, float4(bcol0));
-    result.row2.z = dot(a.row2, float4(bcol1));
-    result.row2.x = dot(a.row2, float4(bcol2));
+    result.row2.x = dot(a.row2, float4(bcol0));
+    result.row2.y = dot(a.row2, float4(bcol1));
+    result.row2.z = dot(a.row2, float4(bcol2));
     result.row2.w = dot(a.row2, float4(bcol3));
 
     result.row3.x = dot(a.row3, float4(bcol0));
