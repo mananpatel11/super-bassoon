@@ -259,9 +259,9 @@ float edge_function(const float4 &a, const float4 &b, const float4 &c) {
 }
 
 void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4 &projection_matrix) {
-    fb.clear(); // Clear the framebuffer
     float4x4 mvp = projection_matrix*view_transform*transform;
     std::array<Varyings, 3> vertex_outs;
+    int depth_test_failure_count = 0;
     for (int i = 0; i < mesh->num_triangles; i++) {    
         float2 bbmin(INFINITY, INFINITY);
         float2 bbmax(-INFINITY, -INFINITY);
@@ -315,18 +315,33 @@ void Model::draw(FrameBuffer &fb, const float4x4 &view_transform, const float4x4
                     float w0 = e12/area;
                     float w1 = e20/area;
 
-                    // Interpolate varyings using barycentrics computed above
-                    Varyings varyings;
-                    varyings.position = w0*vertex_outs[0].position + w1*vertex_outs[1].position + w2*vertex_outs[2].position;
-                    varyings.color = w0*vertex_outs[0].color + w1*vertex_outs[1].color + w2*vertex_outs[2].color;
-                    varyings.texture_coord = w0*vertex_outs[0].texture_coord + w1*vertex_outs[1].texture_coord + w2*vertex_outs[2].texture_coord;
-                    // Run fragment shader
-                    float3 color = fragment_shader(varyings, material->base_color_texture);
-                    fb.writeColor(Coord2D(x, y), color);
+                    // Compute Z-value
+                    float inverse_z = w0/vertex_outs[0].position.z + w1/vertex_outs[1].position.z + w2/vertex_outs[2].position.z;
+                    float new_z = 1/inverse_z;
+                    
+                    
+                    // Do depth testing
+                    float old_z = fb.readDepth(Coord2D(x, y));
+                    if (new_z < old_z) {         
+                        fb.writeDepth(Coord2D(x, y), new_z);
+
+                        // Interpolate varyings using barycentrics computed above
+                        Varyings varyings;
+                        varyings.position = w0*vertex_outs[0].position + w1*vertex_outs[1].position + w2*vertex_outs[2].position;
+                        varyings.position.z = new_z;
+                        varyings.color = w0*vertex_outs[0].color + w1*vertex_outs[1].color + w2*vertex_outs[2].color;
+                        varyings.texture_coord = w0*vertex_outs[0].texture_coord + w1*vertex_outs[1].texture_coord + w2*vertex_outs[2].texture_coord;
+                        // Run fragment shader
+                        float3 color = fragment_shader(varyings, material->base_color_texture);
+                        fb.writeColor(Coord2D(x, y), color);
+                    } else {
+                        depth_test_failure_count++;
+                    }
                 }
             }
         }
     }
+    std::cout << "Failed depth test " << depth_test_failure_count << " times\n";
 }
 
 struct Camera {
@@ -362,6 +377,9 @@ class Scene {
 
 void Scene::update(const Camera &c) {
     float3 eye(cos(c.yaw) * cos(c.pitch), sin(c.pitch), -sin(c.yaw)*cos(c.pitch));
+    eye.x = eye.x*2.5;
+    eye.y = eye.y*2.5;
+    eye.z = eye.z*2.5;
     float3 at(0, 0, 0);
     float3 up(0, 1, 0);
     view_matrix = lookAtMatrix(eye, at, up);
@@ -413,13 +431,11 @@ class Renderer {
 };
 
 void Renderer::Render(FrameBuffer &fb, Scene &scn) {
-    // std::cout << "Rendering started\n";
+    fb.clear(); 
     for (size_t i = 0; i < scn.models.size(); i++) {
-        std::shared_ptr<Model> m = scn.models[i];
+        std::shared_ptr<Model> &m = scn.models[i];
         m->draw(fb, scn.view_matrix, scn.projection_matrix);
-        // exit(0);
     }
-    // std::cout << "Rendering ended\n";
 }
 
 void update_surface(unsigned char *surface, FrameBuffer &fb) {
@@ -526,7 +542,7 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
                 model->material = materials[material_id];    
             }
             
-            model->transform = scalingMatrix(0.015, 0.015, 0.015);
+            // model->transform = scalingMatrix(0.015, 0.015, 0.015);
             models.push_back(model);
             // for (auto &p : positions) {
             //     std::cout << p << "\n";
@@ -541,18 +557,9 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
     return models;
 }
 
-Scene create_scene_from_gltf() {
+Scene create_scene_from_gltf(const std::string&& base_path, const std::string&& gltf_file_name) {
     json j;
-    // std::string base_path = "glTF-Sample-Models/2.0/TriangleWithoutIndices/glTF/";
-    // std::string gltf_path = base_path + "TriangleWithoutIndices.gltf";
-    
-    // std::string base_path = "glTF-Sample-Models/2.0/BoxTextured/glTF/";
-    // std::string gltf_path = base_path + "BoxTextured.gltf";
-    std::string base_path = "glTF-Sample-Models/2.0/Duck/glTF/";
-    std::string gltf_path = base_path + "Duck.gltf";
-    
-    // std::string base_path = "glTF-Sample-Models/2.0/WaterBottle/glTF/";
-    // std::string gltf_path = base_path + "WaterBottle.gltf";
+    std::string gltf_path = base_path + gltf_file_name;
     
     std::ifstream gltf(gltf_path);
     gltf >> j;
@@ -570,7 +577,6 @@ Scene create_scene_from_gltf() {
             scn.models.insert(scn.models.end(), models.begin(), models.end());
         }
     }
-    // exit(0);
     return scn;
 }
 
@@ -580,11 +586,17 @@ void game_loop() {
 
     // Create Scene
     Camera cam;
-    //Scene scn = Scene::CreateTriangleScene();
-    //Scene scn = Scene::CreateCubeScene();
-    Scene scn = create_scene_from_gltf();
-    // scn.projection_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
-    scn.projection_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
+
+    Scene scn0 = create_scene_from_gltf("glTF-Sample-Models/2.0/BoxTextured/glTF/", "BoxTextured.gltf");
+    scn0.models[0]->transform = translationMatrix(-0.5, 0.0, 0.0)*scalingMatrix(1.0, 1.0, 1.0);
+    Scene scn1 = create_scene_from_gltf("glTF-Sample-Models/2.0/Duck/glTF/", "Duck.gltf");
+    scn1.models[0]->transform = translationMatrix(0.5, -2.0, 0.0)*scalingMatrix(0.01, 0.01, 0.01);
+    Scene scn;
+    scn.models.insert(scn.models.end(), scn0.models.begin(), scn0.models.end());
+    scn.models.insert(scn.models.end(), scn1.models.begin(), scn1.models.end());
+    scn.projection_matrix = perspectiveProjectionMatrix(0.1, 10.0, M_PI_2*3/2, M_PI_2*3/2);
+    // scn.projection_matrix = orthographicProjectionMatrix(5.0, 5.0, 0, 5.0);
+    
     // Create FrameBuffer
     FrameBuffer fb = FrameBuffer(width, height);
 
