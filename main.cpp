@@ -16,22 +16,9 @@
 #include "model.h"
 #include "scene.h"
 
-void update_surface(unsigned char *surface, FrameBuffer &fb) {
-    for (int x = 0; x < fb.width; x++) {
-        for (int y = 0; y < fb.height; y++) {
-            int y1 = fb.height-y; // Flip Y
-            int x1 = x;
-            surface[4*(fb.width*y1 + x1) + 0] = fb.readColor(Coord2D(x, y)).r;
-            surface[4*(fb.width*y1 + x1) + 1] = fb.readColor(Coord2D(x, y)).g;
-            surface[4*(fb.width*y1 + x1) + 2] = fb.readColor(Coord2D(x, y)).b;
-            surface[4*(fb.width*y1 + x1) + 3] = 0;
-        }
-    }
-}
-
 void game_loop() {
     int width = 500;
-    int height = 500;
+    int height = 500; 
 
     // Create Scene
     Camera cam;
@@ -64,7 +51,7 @@ void game_loop() {
         // render scene
         scn.Render(fb);
         // Update the window surface with new contents from the fb
-        update_surface(w.surface, fb);
+        fb.update_surface(w.surface);
         // Tell view to present the new surface
         w.present();
         // Reset the record to process new keyboard events

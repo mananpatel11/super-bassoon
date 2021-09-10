@@ -13,6 +13,7 @@ class FrameBuffer {
     void writeDepth(Coord2D coord, float depth);
     float readDepth(Coord2D coord);
     Color readColor(Coord2D coord);
+    void update_surface(unsigned char *surface);
     int width;
     int height;
     int max_component_value = 255;
