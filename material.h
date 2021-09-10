@@ -27,6 +27,7 @@ struct Texture {
     unsigned int height;
     std::vector<float4> colors;
     std::shared_ptr<Sampler> sampler;
+    float4 Sample(const float2 &coord);
 };
 
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/schema/material.pbrMetallicRoughness.schema.json

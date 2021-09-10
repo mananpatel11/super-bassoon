@@ -235,20 +235,10 @@ Varyings vertex_shader(const float3 &position,
     return vout;
 }
 
-float4 sample(const std::shared_ptr<Texture> &texture, const float2 &coord) {
-    float x = coord.x;
-    float y = coord.y;
-    int pix_x = x * texture->width;
-    int pix_y = y * texture->height;
-    
-    int pix_location = pix_y*texture->width + pix_x;
-    return texture->colors[pix_location];
-}
-
 // The position fragment shader receives is interpolated
 float3 fragment_shader(const Varyings &frag_in, const std::shared_ptr<Texture> &texture) {
     float2 coord = frag_in.texture_coord;
-    float4 c = sample(texture, coord);
+    float4 c = texture->Sample(coord);
     return float3(c.x, c.y, c.z);
     // return frag_in.color;
 }

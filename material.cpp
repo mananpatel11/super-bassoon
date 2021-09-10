@@ -100,3 +100,13 @@ std::vector<std::shared_ptr<Material>> CreateMaterials(const json &j, const std:
     }
     return materials;
 }
+
+float4 Texture::Sample(const float2 &coord) {
+    float x = coord.x;
+    float y = coord.y;
+    int pix_x = x * width;
+    int pix_y = y * height;
+    
+    int pix_location = pix_y*width + pix_x;
+    return colors[pix_location];
+}
