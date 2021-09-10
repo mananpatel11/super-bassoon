@@ -240,7 +240,6 @@ float3 fragment_shader(const Varyings &frag_in, const std::shared_ptr<Texture> &
     float2 coord = frag_in.texture_coord;
     float4 c = texture->Sample(coord);
     return float3(c.x, c.y, c.z);
-    // return frag_in.color;
 }
 
 float edge_function(const float4 &a, const float4 &b, const float4 &c) {
@@ -356,13 +355,13 @@ class Scene {
     float4x4 projection_matrix;
     float4x4 view_matrix;
     void update(const Camera &c);
+    void Render(FrameBuffer &fb);
 
     // Constructors
     //static Scene CreateSceneFromGLTF(std::string filename);
     static Scene CreateTriangleScene();
     static Scene CreateQuadScene();
     static Scene CreateCubeScene();
-
 };
 
 void Scene::update(const Camera &c) {
@@ -375,56 +374,11 @@ void Scene::update(const Camera &c) {
     view_matrix = lookAtMatrix(eye, at, up);
 }
 
-Scene Scene::CreateTriangleScene() {
-    Scene s;
-    std::shared_ptr<Mesh> mesh = Mesh::createTriangleMesh();
-    float4x4 model_matrix = scalingMatrix(1.0, 1.0, 1.0);
-    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
-    s.models.push_back(model);
-    float3 eye(0, 0, -1);
-    float3 at(0, 0, 0);
-    float3 up(0, 1, 0);
-    s.view_matrix = lookAtMatrix(eye, at, up);
-    return s;
-}
-
-Scene Scene::CreateQuadScene() {
-    Scene s;
-    std::shared_ptr<Mesh> mesh = Mesh::createQuadMesh();
-    float4x4 model_matrix = scalingMatrix(1.0, 1.0, 1.0);
-    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
-    s.models.push_back(model);
-    float3 eye(0, 0, -1);
-    float3 at(0, 0, 0);
-    float3 up(0, 1, 0);
-    s.view_matrix = lookAtMatrix(eye, at, up);
-    return s;
-}
-
-Scene Scene::CreateCubeScene() {
-    Scene s;
-    std::vector<Model> models;
-    std::shared_ptr<Mesh> mesh = Mesh::createCubeMesh();
-    float4x4 model_matrix = scalingMatrix(0.5, 0.5, 0.5);
-    std::shared_ptr<Model> model = std::make_shared<Model>(mesh, model_matrix);
-    s.models.push_back(model);
-    float3 eye(2, 0, -1);
-    float3 at(0, 0, 0);
-    float3 up(0, 1, 0);
-    s.view_matrix = lookAtMatrix(eye, at, up);
-    return s;
-}
-
-class Renderer {
-    public:
-    static void Render(FrameBuffer &fb, Scene &scn);
-};
-
-void Renderer::Render(FrameBuffer &fb, Scene &scn) {
+void Scene::Render(FrameBuffer &fb) {
     fb.clear(); 
-    for (size_t i = 0; i < scn.models.size(); i++) {
-        std::shared_ptr<Model> &m = scn.models[i];
-        m->draw(fb, scn.view_matrix, scn.projection_matrix);
+    for (size_t i = 0; i < models.size(); i++) {
+        std::shared_ptr<Model> &m = models[i];
+        m->draw(fb, view_matrix, projection_matrix);
     }
 }
 
@@ -530,17 +484,11 @@ std::vector<std::shared_ptr<Model>> process_node(const json &j,
             if (primitive["material"] != nullptr) {
                 int material_id = primitive["material"].get<int>();
                 model->material = materials[material_id];    
-            }
-            
-            // model->transform = scalingMatrix(0.015, 0.015, 0.015);
+            }    
             models.push_back(model);
-            // for (auto &p : positions) {
-            //     std::cout << p << "\n";
-            // }
         }
     } else if (node["camera"] != nullptr) {
         std::cout << "Not handling camera ATM\n";
-        //exit(-1);
     } else if (node["skin"] != nullptr) {
         std::cout << "Not handling skin ATM\n";
     }
@@ -604,7 +552,7 @@ void game_loop() {
         // update scene using updated camera
         scn.update(cam);
         // render scene
-        Renderer::Render(fb, scn);
+        scn.Render(fb);
         // Update the window surface with new contents from the fb
         update_surface(w.surface, fb);
         // Tell view to present the new surface
@@ -620,70 +568,10 @@ void game_loop() {
             num_frames = 0;
             start_time = std::chrono::system_clock::now();
         }
-    }
-    
-    
+    }    
     w.destroy();
 }
 
-int test_triangle() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateTriangleScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("triangle.ppm");
-    return 0;
-}
-
-int test_quad() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateQuadScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("quad.ppm");
-    return 0;
-}
-
-int test_cube() {
-    int width = 256;
-    int height = 256;
-
-    // Create Scene
-    Scene scn = Scene::CreateCubeScene();
-
-    // Create FrameBuffer
-    FrameBuffer fb = FrameBuffer(width, height);
-
-    // Draw Scene into FrameBuffer
-    Renderer::Render(fb, scn);
-
-    // Dump FrameBuffer into an image file
-    fb.DumpAsPPMFile("cube.ppm");
-    return 0;
-}
-
 int main() {
-    //create_scene_from_gltf();
     game_loop();
-    //test_triangle();
-    //test_quad();
-    //test_cube();
 } 
